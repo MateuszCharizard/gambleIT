@@ -69,7 +69,7 @@ export default function Login() {
           </motion.button>
         </form>
         <p className="text-gray-400 text-center mt-4">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link href="/register" className="text-indigo-400 hover:text-indigo-300">
             Register
           </Link>

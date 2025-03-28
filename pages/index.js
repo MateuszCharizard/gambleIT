@@ -49,7 +49,6 @@ export default function CaseOpenerPro() {
 
     if (authUser) {
       const fetchUserData = async () => {
-        // Fetch inventory
         const { data: invData, error: invError } = await supabase
           .from('inventory')
           .select('*')
@@ -59,16 +58,14 @@ export default function CaseOpenerPro() {
         } else {
           console.error('Error fetching inventory:', invError);
         }
-
-        // Fetch or initialize user stats
+  
         let { data: statsData, error: statsError } = await supabase
           .from('user_stats')
           .select('*')
           .eq('user_id', authUser.id)
           .single();
-
+  
         if (statsError && statsError.code === 'PGRST116') {
-          // No row exists, insert default stats
           const { error: insertError } = await supabase
             .from('user_stats')
             .insert({ user_id: authUser.id });
@@ -90,7 +87,7 @@ export default function CaseOpenerPro() {
           console.error('Error fetching stats:', statsError);
           return;
         }
-
+  
         setTokens(statsData.tokens);
         setCasesOpened(statsData.cases_opened);
         setBestDrop(statsData.best_drop);
@@ -124,7 +121,7 @@ export default function CaseOpenerPro() {
   // Call updateStatsInDB whenever stats change
   useEffect(() => {
     if (user) updateStatsInDB();
-  }, [tokens, casesOpened, bestDrop, winRate, dropHistory, totalValueWon]);
+  }, [tokens, casesOpened, bestDrop, winRate, dropHistory, totalValueWon, user, updateStatsInDB]);
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -262,8 +259,8 @@ export default function CaseOpenerPro() {
       interval = setInterval(handleOpenCase, 7000);
     }
     return () => clearInterval(interval);
-  }, [autoOpen, tokens, caseCost, multiplier]);
-
+  }, [autoOpen, tokens, caseCost, multiplier, handleOpenCase]);
+  
   const handleSaveDrop = async () => {
     if (currentDrop && user) {
       const { error } = await supabase
