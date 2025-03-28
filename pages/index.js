@@ -194,16 +194,27 @@ export default function CaseOpenerPro() {
 
   const getRandomDrop = (seed) => {
     if (drops.length === 0) return null;
-    const rand = Math.abs(Math.sin(seed.length * 9301 + 49297) % 1);
+    // Use a simple hash to seed a pseudo-random number generator
+    let seedValue = 0;
+    for (let i = 0; i < seed.length; i++) {
+      seedValue = (seedValue * 31 + seed.charCodeAt(i)) & 0xFFFFFFFF;
+    }
+    const rand = (Math.abs(seedValue) / 0xFFFFFFFF); // Normalize to 0-1
     const totalChance = drops.reduce((sum, drop) => sum + drop.chance, 0);
-    if (totalChance <= 0) return drops[0]; // Fallback if chances are invalid
+    if (totalChance <= 0) return drops[0];
     const normalizedRand = rand * totalChance;
+    console.log('Random value:', rand, 'Total chance:', totalChance, 'Normalized rand:', normalizedRand); // Debug log
     let cumulative = 0;
     for (const drop of drops) {
       cumulative += drop.chance;
-      if (normalizedRand <= cumulative) return drop;
+      console.log(`Checking ${drop.name}: Cumulative = ${cumulative}`); // Debug log
+      if (normalizedRand <= cumulative) {
+        console.log(`Selected ${drop.name}`); // Debug log
+        return drop;
+      }
     }
-    return drops[drops.length - 1]; // Fallback to last item if rounding errors occur
+    console.log('Fallback to last item:', drops[drops.length - 1].name); // Debug log
+    return drops[drops.length - 1];
   };
 
   const handleOpenCase = async () => {
@@ -212,7 +223,7 @@ export default function CaseOpenerPro() {
       return;
     }
 
-    console.log('Available drops for crate:', drops); // Debug log
+    console.log('Available drops for crate:', drops.map(d => ({ name: d.name, chance: d.chance }))); // Debug log
 
     if (currentDrop) {
       const saleValue = currentDrop.value * multiplier;
