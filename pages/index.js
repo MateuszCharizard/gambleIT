@@ -15,7 +15,7 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function CaseOpenerPro() {
-  const [tokens, setTokens] = useState(0); // Start at 0, will be set by fetch
+  const [tokens, setTokens] = useState(0);
   const [inventory, setInventory] = useState([]);
   const [casesOpened, setCasesOpened] = useState(0);
   const [bestDrop, setBestDrop] = useState("None");
@@ -37,12 +37,13 @@ export default function CaseOpenerPro() {
   const [password, setPassword] = useState("");
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [drops, setDrops] = useState([]);
   const controls = useAnimation();
   const audioRef = useRef(null);
 
   const { user: authUser, signIn, signUp, signOut } = useAuth();
 
-  // Fetch user stats from Supabase on mount or auth change
+  // Fetch user stats and case items on mount or auth change
   useEffect(() => {
     setUser(authUser);
     if (!authUser) {
@@ -50,7 +51,7 @@ export default function CaseOpenerPro() {
       return;
     }
 
-    const fetchUserData = async () => {
+    const fetchData = async () => {
       try {
         // Fetch inventory
         const { data: invData, error: invError } = await supabase
@@ -68,7 +69,6 @@ export default function CaseOpenerPro() {
           .single();
 
         if (statsError && statsError.code === 'PGRST116') {
-          // No stats exist, initialize with defaults
           const defaultStats = {
             user_id: authUser.id,
             tokens: 1000,
@@ -87,22 +87,29 @@ export default function CaseOpenerPro() {
           throw statsError;
         }
 
-        // Set local state from fetched data
         setTokens(statsData.tokens);
         setCasesOpened(statsData.cases_opened);
         setBestDrop(statsData.best_drop);
         setWinRate(statsData.win_rate);
         setDropHistory(statsData.drop_history || []);
         setTotalValueWon(statsData.total_value_won);
+
+        // Fetch case items
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('case_items')
+          .select('*');
+        if (itemsError) throw itemsError;
+        console.log('Fetched case items:', itemsData); // Debug log
+        setDrops(itemsData || []);
       } catch (error) {
-        console.error('Error fetching user data:', error.message);
-        toast.error('Failed to load user data');
+        console.error('Error fetching data:', error.message);
+        toast.error('Failed to load data');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUserData();
+    fetchData();
   }, [authUser]);
 
   // Update Supabase with current stats (debounced)
@@ -128,7 +135,7 @@ export default function CaseOpenerPro() {
 
   useEffect(() => {
     if (user) {
-      const debounce = setTimeout(() => updateStatsInDB(), 500); // Debounce by 500ms
+      const debounce = setTimeout(() => updateStatsInDB(), 500);
       return () => clearTimeout(debounce);
     }
   }, [tokens, casesOpened, bestDrop, winRate, dropHistory, totalValueWon, user]);
@@ -172,11 +179,6 @@ export default function CaseOpenerPro() {
     }
   };
 
-  const drops = [
-    { name: "IAMMATIX", value: 100, chance: 0.60, image: "/i am matix.jpg", color: "text-gray-400", rarity: "Common", glow: "shadow-silver" },
-    { name: "Noodle Kyle", value: 500, chance: 0.40, image: "/silver-crate.png", color: "text-purple-700", rarity: "Epic", glow: "shadow-gold" },
-  ];
-
   const soundEffects = {
     roll: new Howl({ src: ["/sounds/premium-roll.mp3"], volume: 0.8 }),
     winCommon: new Howl({ src: ["/sounds/win-common-premium.mp3"], volume: 0.9 }),
@@ -191,20 +193,26 @@ export default function CaseOpenerPro() {
   };
 
   const getRandomDrop = (seed) => {
+    if (drops.length === 0) return null;
     const rand = Math.abs(Math.sin(seed.length * 9301 + 49297) % 1);
+    const totalChance = drops.reduce((sum, drop) => sum + drop.chance, 0);
+    if (totalChance <= 0) return drops[0]; // Fallback if chances are invalid
+    const normalizedRand = rand * totalChance;
     let cumulative = 0;
     for (const drop of drops) {
       cumulative += drop.chance;
-      if (rand <= cumulative) return drop;
+      if (normalizedRand <= cumulative) return drop;
     }
-    return drops[0];
+    return drops[drops.length - 1]; // Fallback to last item if rounding errors occur
   };
 
   const handleOpenCase = async () => {
-    if (isOpening || tokens < caseCost * multiplier) {
-      toast.error(`Need ${caseCost * multiplier} tokens to open!`);
+    if (isOpening || tokens < caseCost * multiplier || drops.length === 0) {
+      toast.error(drops.length === 0 ? "No items available to unbox!" : `Need ${caseCost * multiplier} tokens to open!`);
       return;
     }
+
+    console.log('Available drops for crate:', drops); // Debug log
 
     if (currentDrop) {
       const saleValue = currentDrop.value * multiplier;
@@ -224,6 +232,11 @@ export default function CaseOpenerPro() {
     const fairHash = generateProvablyFairHash();
     setProvablyFairHash(fairHash);
     const finalDrop = getRandomDrop(fairHash);
+
+    if (!finalDrop) {
+      setIsOpening(false);
+      return;
+    }
 
     const totalItems = 40;
     const finalIndex = 35;
@@ -265,11 +278,11 @@ export default function CaseOpenerPro() {
 
   useEffect(() => {
     let interval;
-    if (autoOpen && tokens >= caseCost * multiplier) {
+    if (autoOpen && tokens >= caseCost * multiplier && drops.length > 0) {
       interval = setInterval(handleOpenCase, 7000);
     }
     return () => clearInterval(interval);
-  }, [autoOpen, tokens, caseCost, multiplier, handleOpenCase]);
+  }, [autoOpen, tokens, caseCost, multiplier, drops]);
 
   const handleSaveDrop = async () => {
     if (currentDrop && user) {
@@ -280,7 +293,7 @@ export default function CaseOpenerPro() {
           item_name: currentDrop.name,
           value: currentDrop.value,
           rarity: currentDrop.rarity,
-          image: currentDrop.image,
+          image: currentDrop.image_url,
           color: currentDrop.color,
           glow: currentDrop.glow
         });
@@ -439,6 +452,14 @@ export default function CaseOpenerPro() {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-indigo-900 flex items-center justify-center">
+        <p className="text-white text-xl">Loading...</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <style>{combinedStyles}</style>
@@ -505,7 +526,7 @@ export default function CaseOpenerPro() {
               <motion.button
                 onClick={handleOpenCase}
                 className="bg-theme-primary text-white px-8 py-3 rounded-lg font-semibold shadow-md hover:bg-theme-primary/80 transition-all disabled:opacity-50"
-                disabled={isOpening || tokens < caseCost * multiplier}
+                disabled={isOpening || tokens < caseCost * multiplier || drops.length === 0}
                 whileHover={{ scale: 1.05, boxShadow: "0 0 15px var(--theme-primary)" }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -524,7 +545,7 @@ export default function CaseOpenerPro() {
                       } flex items-center justify-center`}
                       whileHover={{ scale: 1.1 }}
                     >
-                      <Image src={drop.image} alt={drop.name} width={80} height={80} className="object-contain" />
+                      <Image src={drop.image_url} alt={drop.name} width={80} height={80} className="object-contain" />
                     </motion.div>
                   ))}
                 </motion.div>
@@ -545,7 +566,7 @@ export default function CaseOpenerPro() {
                   whileHover={{ scale: 1.03 }}
                 >
                   <div className="w-24 h-24 bg-gray-800 rounded-full mx-auto mb-3 flex items-center justify-center overflow-hidden">
-                    <Image src={currentDrop.image} alt={currentDrop.name} width={90} height={90} className="object-contain animate-spin-slow" />
+                    <Image src={currentDrop.image_url} alt={currentDrop.name} width={90} height={90} className="object-contain animate-spin-slow" />
                   </div>
                   <h2 className="text-lg font-extrabold text-white text-center">You Won!</h2>
                   <p className={`text-md my-3 text-center font-semibold ${currentDrop.color}`}>
@@ -608,13 +629,13 @@ export default function CaseOpenerPro() {
                 Possible Drops
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {drops.map((drop, index) => (
+                {drops.map((drop) => (
                   <motion.div
-                    key={index}
+                    key={drop.id}
                     className={`bg-gray-800 p-3 rounded-lg border ${glowEffects[drop.glow]} flex items-center space-x-3`}
                     whileHover={{ scale: 1.02, boxShadow: "0 0 15px var(--theme-primary)" }}
                   >
-                    <Image src={drop.image} alt={drop.name} width={60} height={60} className="object-contain rounded-md" />
+                    <Image src={drop.image_url} alt={drop.name} width={60} height={60} className="object-contain rounded-md" />
                     <div>
                       <p className={`text-md font-semibold ${drop.color}`}>{drop.name}</p>
                       <p className="text-gray-400 text-xs">Value: <span className="font-bold">{drop.value.toLocaleString()} Tokens</span></p>
