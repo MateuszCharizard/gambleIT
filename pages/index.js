@@ -135,6 +135,14 @@ export default function CaseOpenerPro() {
     }
   };
 
+  const handleSecretTokenBoost = () => {
+    setTokens((prev) => prev + 1000);
+    toast.success("Secret boost: +1000 Tokens!", {
+      duration: 2000,
+      style: { background: "#1f2937", color: "#fff", border: "1px solid #9333ea" },
+    });
+  };
+
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.95 },
     visible: { opacity: 1, scale: 1, transition: { duration: 0.6, ease: "easeOut" } },
@@ -196,6 +204,8 @@ export default function CaseOpenerPro() {
     .bg-theme-primary { background-color: var(--theme-primary); }
     .bg-theme-secondary { background-color: var(--theme-secondary); }
     .hover\\:bg-theme-primary\\/80:hover { background-color: rgba(${parseInt(themes[theme].primary.slice(1), 16) >> 16}, ${parseInt(themes[theme].primary.slice(3, 5), 16)}, ${parseInt(themes[theme].primary.slice(5, 7), 16)}, 0.8); }
+    .secret-button { cursor: pointer; }
+    .secret-button:hover { transform: scale(1.1); transition: transform 0.2s ease; }
   `;
 
   return (
@@ -211,7 +221,11 @@ export default function CaseOpenerPro() {
             </h1>
             <div className="flex items-center space-x-8">
               <p className="text-white text-lg flex items-center">
-                <FaGem className="mr-2 text-yellow-400" />
+                <FaGem
+                  className="mr-2 text-yellow-400 secret-button"
+                  onClick={handleSecretTokenBoost}
+                  title="Click for a secret boost!"
+                />
                 <span className="font-bold">{tokens.toLocaleString()}</span>
               </p>
               <Link href="/inventory" className="text-indigo-300 hover:text-white transition-all duration-300 flex items-center text-lg">
@@ -286,25 +300,25 @@ export default function CaseOpenerPro() {
             <AnimatePresence>
               {currentDrop && !isOpening && (
                 <motion.div
-                  className={`mt-8 w-full max-w-md bg-gray-900 p-6 rounded-xl border-2 ${glowEffects[currentDrop.glow]} shadow-xl`}
+                  className={`mt-8 w-full max-w-sm mx-auto bg-gray-900 p-4 rounded-xl border-2 ${glowEffects[currentDrop.glow]} shadow-xl`}
                   variants={dropVariants}
                   initial="hidden"
                   animate="visible"
                   exit="hidden"
                   whileHover={{ scale: 1.03 }}
                 >
-                  <div className="w-32 h-32 bg-gray-800 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden">
-                    <Image src={currentDrop.image} alt={currentDrop.name} width={120} height={120} className="object-contain animate-spin-slow" />
+                  <div className="w-24 h-24 bg-gray-800 rounded-full mx-auto mb-3 flex items-center justify-center overflow-hidden">
+                    <Image src={currentDrop.image} alt={currentDrop.name} width={90} height={90} className="object-contain animate-spin-slow" />
                   </div>
-                  <h2 className="text-2xl font-extrabold text-white text-center">You Won!</h2>
-                  <p className={`text-xl my-4 text-center font-semibold ${currentDrop.color}`}>
+                  <h2 className="text-lg font-extrabold text-white text-center">You Won!</h2>
+                  <p className={`text-md my-3 text-center font-semibold ${currentDrop.color}`}>
                     {currentDrop.name} ({currentDrop.value.toLocaleString()} Tokens)
                   </p>
-                  <p className="text-gray-300 text-center text-sm">Rarity: <span className="font-bold">{currentDrop.rarity}</span></p>
-                  <div className="flex justify-center space-x-6 mt-6">
+                  <p className="text-gray-300 text-center text-xs">Rarity: <span className="font-bold">{currentDrop.rarity}</span></p>
+                  <div className="flex justify-center space-x-4 mt-4">
                     <motion.button
                       onClick={handleSaveDrop}
-                      className="bg-theme-primary text-white px-6 py-2 rounded-md font-semibold hover:bg-theme-primary/80 transition-all"
+                      className="bg-theme-primary text-white px-4 py-1 rounded-md font-semibold hover:bg-theme-primary/80 transition-all text-sm"
                       whileHover={{ scale: 1.1, boxShadow: "0 0 15px var(--theme-primary)" }}
                       whileTap={{ scale: 0.95 }}
                     >
@@ -312,14 +326,14 @@ export default function CaseOpenerPro() {
                     </motion.button>
                     <motion.button
                       onClick={handleSellDrop}
-                      className="bg-green-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-green-700 transition-all"
+                      className="bg-green-600 text-white px-4 py-1 rounded-md font-semibold hover:bg-green-700 transition-all text-sm"
                       whileHover={{ scale: 1.1, boxShadow: "0 0 15px rgba(34, 197, 94, 0.8)" }}
                       whileTap={{ scale: 0.95 }}
                     >
                       Sell for {currentDrop.value * multiplier}
                     </motion.button>
                   </div>
-                  <p className="text-gray-400 text-xs mt-4 text-center">Hash: {provablyFairHash.slice(0, 10)}...</p>
+                  <p className="text-gray-400 text-xs mt-3 text-center">Hash: {provablyFairHash.slice(0, 10)}...</p>
                 </motion.div>
               )}
             </AnimatePresence>
