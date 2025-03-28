@@ -1,15 +1,27 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, useAnimation, AnimatePresence } from "framer-motion";
-import { useGame } from "../context/GameContext";
 import Link from "next/link";
 import Image from "next/image";
 import { Howl } from "howler";
 import Confetti from "react-confetti";
 import { toast, Toaster } from "react-hot-toast";
 import { FaGem, FaCrown, FaUserFriends, FaPalette, FaArrowLeft, FaWallet, FaChartLine } from "react-icons/fa";
+import { createClient } from '@supabase/supabase-js';
+import { useAuth } from "../context/AuthContext";
+
+// Initialize Supabase client
+const supabaseUrl = 'https://hawjgysofnwidxanykrr.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhd2pneXNvZm53aWR4YW55a3JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMxNTQ2MzQsImV4cCI6MjA1ODczMDYzNH0.o9Sb14acr7EJNdt7BLgw1566A5pEg5ZEfCiDuDqiAhI';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function CaseOpenerPro() {
-  const { tokens, setTokens, inventory, setInventory, userStats, updateUserStats } = useGame();
+  const [tokens, setTokens] = useState(1000);
+  const [inventory, setInventory] = useState([]);
+  const [casesOpened, setCasesOpened] = useState(0);
+  const [bestDrop, setBestDrop] = useState("None");
+  const [winRate, setWinRate] = useState(0);
+  const [dropHistory, setDropHistory] = useState([]);
+  const [totalValueWon, setTotalValueWon] = useState(0);
   const [currentDrop, setCurrentDrop] = useState(null);
   const [isOpening, setIsOpening] = useState(false);
   const [scrollingDrops, setScrollingDrops] = useState([]);
@@ -17,12 +29,141 @@ export default function CaseOpenerPro() {
   const [multiplier, setMultiplier] = useState(1);
   const [provablyFairHash, setProvablyFairHash] = useState("");
   const [showHistory, setShowHistory] = useState(false);
-  const [dropHistory, setDropHistory] = useState([]);
   const [autoOpen, setAutoOpen] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [theme, setTheme] = useState("purple");
+  const [user, setUser] = useState(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLogin, setIsLogin] = useState(true);
+  const [loading, setLoading] = useState(true);
   const controls = useAnimation();
   const audioRef = useRef(null);
+
+  const { user: authUser, signIn, signUp, signOut } = useAuth();
+
+  // Fetch and sync user stats from Supabase
+  useEffect(() => {
+    setUser(authUser);
+    setLoading(false);
+
+    if (authUser) {
+      const fetchUserData = async () => {
+        // Fetch inventory
+        const { data: invData, error: invError } = await supabase
+          .from('inventory')
+          .select('*')
+          .eq('user_id', authUser.id);
+        if (!invError) {
+          setInventory(invData || []);
+        } else {
+          console.error('Error fetching inventory:', invError);
+        }
+
+        // Fetch or initialize user stats
+        let { data: statsData, error: statsError } = await supabase
+          .from('user_stats')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .single();
+
+        if (statsError && statsError.code === 'PGRST116') {
+          // No row exists, insert default stats
+          const { error: insertError } = await supabase
+            .from('user_stats')
+            .insert({ user_id: authUser.id });
+          if (!insertError) {
+            statsData = {
+              user_id: authUser.id,
+              tokens: 1000,
+              cases_opened: 0,
+              best_drop: "None",
+              win_rate: 0,
+              drop_history: [],
+              total_value_won: 0,
+            };
+          } else {
+            console.error('Error initializing stats:', insertError);
+            return;
+          }
+        } else if (statsError) {
+          console.error('Error fetching stats:', statsError);
+          return;
+        }
+
+        setTokens(statsData.tokens);
+        setCasesOpened(statsData.cases_opened);
+        setBestDrop(statsData.best_drop);
+        setWinRate(statsData.win_rate);
+        setDropHistory(statsData.drop_history);
+        setTotalValueWon(statsData.total_value_won);
+      };
+      fetchUserData();
+    }
+  }, [authUser]);
+
+  // Update Supabase with current stats
+  const updateStatsInDB = async () => {
+    if (!user) return;
+    const stats = {
+      tokens,
+      cases_opened: casesOpened,
+      best_drop: bestDrop,
+      win_rate: winRate,
+      drop_history: dropHistory,
+      total_value_won: totalValueWon,
+    };
+    const { error } = await supabase
+      .from('user_stats')
+      .upsert({ user_id: user.id, ...stats });
+    if (error) {
+      console.error('Error updating stats:', error);
+    }
+  };
+
+  // Call updateStatsInDB whenever stats change
+  useEffect(() => {
+    if (user) updateStatsInDB();
+  }, [tokens, casesOpened, bestDrop, winRate, dropHistory, totalValueWon]);
+
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      if (isLogin) {
+        const { error } = await signIn({ email, password });
+        if (error) throw error;
+        toast.success('Successfully logged in!');
+      } else {
+        const { error } = await signUp({ email, password });
+        if (error) throw error;
+        toast.success('Registration successful! Please check your email.');
+      }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await signOut();
+      if (error) throw error;
+      toast.success('Signed out successfully!');
+      setUser(null);
+      setInventory([]);
+      setTokens(1000);
+      setCasesOpened(0);
+      setBestDrop("None");
+      setWinRate(0);
+      setDropHistory([]);
+      setTotalValueWon(0);
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
 
   const drops = [
     { name: "IAMMATIX", value: 100, chance: 0.60, image: "/i am matix.jpg", color: "text-gray-400", rarity: "Common", glow: "shadow-silver" },
@@ -61,13 +202,13 @@ export default function CaseOpenerPro() {
     if (currentDrop) {
       const saleValue = currentDrop.value * multiplier;
       setTokens((prev) => prev + saleValue);
-      updateUserStats({ totalValueWon: (userStats.totalValueWon || 0) + saleValue });
+      setTotalValueWon((prev) => prev + saleValue);
       toast.success(`Auto-sold ${currentDrop.name} for ${saleValue} Tokens!`);
       setCurrentDrop(null);
     }
 
     setTokens((prev) => prev - caseCost * multiplier);
-    updateUserStats({ casesOpened: (userStats.casesOpened || 0) + 1 });
+    setCasesOpened((prev) => prev + 1);
     setIsOpening(true);
     setScrollingDrops([]);
     await controls.stop();
@@ -97,7 +238,12 @@ export default function CaseOpenerPro() {
     });
 
     setCurrentDrop(finalDrop);
-    setDropHistory([...dropHistory, { ...finalDrop, timestamp: new Date() }]);
+    const newDropHistory = [...dropHistory, { ...finalDrop, timestamp: new Date() }];
+    setDropHistory(newDropHistory);
+    if (finalDrop.value > (dropHistory.reduce((a, b) => a.value > b.value ? a : b, { value: 0 }).value || 0)) {
+      setBestDrop(finalDrop.name);
+    }
+    setWinRate(casesOpened ? Math.round((totalValueWon / (casesOpened * caseCost)) * 100) : 0);
     setIsOpening(false);
 
     if (finalDrop.rarity === "Legendary" || finalDrop.rarity === "Mythic") {
@@ -118,11 +264,28 @@ export default function CaseOpenerPro() {
     return () => clearInterval(interval);
   }, [autoOpen, tokens, caseCost, multiplier]);
 
-  const handleSaveDrop = () => {
-    if (currentDrop) {
-      setInventory([...inventory, currentDrop]);
-      updateUserStats({ totalValueWon: (userStats.totalValueWon || 0) + currentDrop.value });
-      setCurrentDrop(null);
+  const handleSaveDrop = async () => {
+    if (currentDrop && user) {
+      const { error } = await supabase
+        .from('inventory')
+        .insert({
+          user_id: user.id,
+          item_name: currentDrop.name,
+          value: currentDrop.value,
+          rarity: currentDrop.rarity,
+          image: currentDrop.image,
+          color: currentDrop.color,
+          glow: currentDrop.glow
+        });
+      
+      if (!error) {
+        setInventory([...inventory, currentDrop]);
+        setTotalValueWon((prev) => prev + currentDrop.value);
+        setCurrentDrop(null);
+        toast.success(`Saved ${currentDrop.name} to inventory!`);
+      } else {
+        toast.error('Failed to save item');
+      }
     }
   };
 
@@ -130,7 +293,7 @@ export default function CaseOpenerPro() {
     if (currentDrop) {
       const saleValue = currentDrop.value * multiplier;
       setTokens((prev) => prev + saleValue);
-      updateUserStats({ totalValueWon: (userStats.totalValueWon || 0) + saleValue });
+      setTotalValueWon((prev) => prev + saleValue);
       setCurrentDrop(null);
     }
   };
@@ -208,6 +371,67 @@ export default function CaseOpenerPro() {
     .secret-button:hover { transform: scale(1.1); transition: transform 0.2s ease; }
   `;
 
+  if (!user) {
+    return (
+      <>
+        <style>{combinedStyles}</style>
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-indigo-900 flex items-center justify-center p-4">
+          <motion.div 
+            className="bg-gray-800 p-8 rounded-xl shadow-xl border border-theme max-w-md w-full"
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <h1 className="text-3xl font-bold text-white mb-6 text-center">
+              {isLogin ? "Login" : "Register"}
+            </h1>
+            <form onSubmit={handleAuth} className="space-y-4">
+              <div>
+                <label className="text-gray-300 mb-2 block">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full p-2 bg-gray-700 rounded-md text-white border border-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-gray-300 mb-2 block">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full p-2 bg-gray-700 rounded-md text-white border border-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+              <motion.button
+                type="submit"
+                className="w-full bg-theme-primary text-white p-2 rounded-md hover:bg-theme-primary/80 disabled:opacity-50"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                disabled={loading}
+              >
+                {loading ? 'Processing...' : (isLogin ? 'Login' : 'Register')}
+              </motion.button>
+            </form>
+            <p className="text-gray-400 text-center mt-4">
+              {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
+              <button 
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-indigo-400 hover:text-indigo-300"
+              >
+                {isLogin ? "Register" : "Login"}
+              </button>
+            </p>
+          </motion.div>
+        </div>
+        <Toaster />
+      </>
+    );
+  }
+
   return (
     <>
       <style>{combinedStyles}</style>
@@ -237,6 +461,12 @@ export default function CaseOpenerPro() {
               <Link href="/friends" className="text-indigo-300 hover:text-white transition-all duration-300 flex items-center text-lg">
                 <FaUserFriends className="mr-1" /> Friends
               </Link>
+              <button 
+                onClick={handleSignOut}
+                className="text-indigo-300 hover:text-white transition-all duration-300 flex items-center text-lg"
+              >
+                Sign Out
+              </button>
             </div>
           </div>
 
@@ -340,8 +570,8 @@ export default function CaseOpenerPro() {
 
             <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 text-gray-300">
               <motion.div className="bg-gray-800 p-4 rounded-xl border border-theme" whileHover={{ scale: 1.02 }}>
-                <p className="text-sm">Cases Opened: <span className="font-bold text-indigo-400">{userStats.casesOpened || 0}</span></p>
-                <p className="text-sm">Total Won: <span className="font-bold text-indigo-400">{(userStats.totalValueWon || 0).toLocaleString()} Tokens</span></p>
+                <p className="text-sm">Cases Opened: <span className="font-bold text-indigo-400">{casesOpened}</span></p>
+                <p className="text-sm">Total Won: <span className="font-bold text-indigo-400">{totalValueWon.toLocaleString()} Tokens</span></p>
               </motion.div>
               <motion.div className="bg-gray-800 p-4 rounded-xl border border-theme" whileHover={{ scale: 1.02 }}>
                 <p className="text-sm flex justify-between">
@@ -361,8 +591,8 @@ export default function CaseOpenerPro() {
                 )}
               </motion.div>
               <motion.div className="bg-gray-800 p-4 rounded-xl border border-theme" whileHover={{ scale: 1.02 }}>
-                <p className="text-sm">Win Rate: <span className="font-bold text-indigo-400">{userStats.casesOpened ? Math.round((userStats.totalValueWon / (userStats.casesOpened * caseCost)) * 100) || 0 : 0}%</span></p>
-                <p className="text-sm">Best Drop: <span className="font-bold text-indigo-400">{dropHistory.length ? dropHistory.reduce((a, b) => a.value > b.value ? a : b).name : "None"}</span></p>
+                <p className="text-sm">Win Rate: <span className="font-bold text-indigo-400">{winRate}%</span></p>
+                <p className="text-sm">Best Drop: <span className="font-bold text-indigo-400">{bestDrop}</span></p>
               </motion.div>
             </div>
 
@@ -395,7 +625,7 @@ export default function CaseOpenerPro() {
           <motion.button className="bg-indigo-600 p-3 rounded-full shadow-lg" whileHover={{ scale: 1.1 }} onClick={() => toast("Live chat coming soon!")}>
             <FaUserFriends className="text-white" size={32} />
           </motion.button>
-          <Link href="/pro-subscription">
+          <Link href="/subscription">
             <motion.button className="bg-theme-primary p-3 rounded-full shadow-lg" whileHover={{ scale: 1.1 }}>
               <FaCrown className="text-white" size={32} />
             </motion.button>

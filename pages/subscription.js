@@ -1,17 +1,49 @@
-import { motion, useAnimation, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { FaArrowLeft, FaCrown, FaGem } from "react-icons/fa";
-import { useGame } from "../context/GameContext";
-import { toast, Toaster } from "react-hot-toast"; // Updated to react-hot-toast
-import { FaUserFriends, FaPalette } from "react-icons/fa";
+import { FaArrowLeft, FaCrown, FaGem, FaUserFriends, FaPalette } from "react-icons/fa";
+import { supabase } from "../lib/supabase";
+import { toast, Toaster } from "react-hot-toast";
 
 export default function ProSubscriptionPage() {
-  const { setTokens } = useGame();
+  const [user, setUser] = useState(null);
+  const [subscription, setSubscription] = useState(null);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [theme, setTheme] = useState("purple");
 
-  const handleSubscribe = (cost) => {
-    setTokens((prev) => prev - cost);
-    toast.success("Subscribed to Pro! Enjoy your benefits!"); // Updated to react-hot-toast
+  useEffect(() => {
+    const fetchUserAndSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      if (user) {
+        const { data } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('active', true)
+          .single();
+        setSubscription(data);
+      }
+    };
+    fetchUserAndSubscription();
+  }, []);
+
+  const handleSubscribe = async (cost, type) => {
+    if (!user) return;
+    if (subscription) {
+      toast.error("You already have an active subscription!");
+      return;
+    }
+
+    const { error } = await supabase
+      .from('subscriptions')
+      .insert({ user_id: user.id, type, active: true });
+
+    if (!error) {
+      toast.success("Subscribed to Pro! Enjoy your benefits!");
+    } else {
+      toast.error("Subscription failed");
+    }
   };
 
   const containerVariants = {
@@ -19,55 +51,57 @@ export default function ProSubscriptionPage() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
   };
 
-  const [showThemeModal, setShowThemeModal] = useState(false);
-    const [theme, setTheme] = useState("purple");
-    const themes = {
-      green: { primary: "#16a34a", secondary: "#22c55e" },
-      blue: { primary: "#2563eb", secondary: "#3b82f6" },
-      pink: { primary: "#ec4899", secondary: "#f472b6" },
-      purple: { primary: "#9333ea", secondary: "#a855f7" },
-      red: { primary: "#dc2626", secondary: "#ef4444" },
-      orange: { primary: "#ea580c", secondary: "#f97316" },
-    };
-  
-    const combinedStyles = `
-      @import "tailwindcss";
+  const themes = {
+    green: { primary: "#16a34a", secondary: "#22c55e" },
+    blue: { primary: "#2563eb", secondary: "#3b82f6" },
+    pink: { primary: "#ec4899", secondary: "#f472b6" },
+    purple: { primary: "#9333ea", secondary: "#a855f7" },
+    red: { primary: "#dc2626", secondary: "#ef4444" },
+    orange: { primary: "#ea580c", secondary: "#f97316" },
+  };
+
+  const combinedStyles = `
+    @import "tailwindcss";
+    :root {
+      --background: #ffffff;
+      --foreground: #171717;
+      --theme-primary: ${themes[theme].primary};
+      --theme-secondary: ${themes[theme].secondary};
+    }
+    @media (prefers-color-scheme: dark) {
       :root {
-        --background: #ffffff;
-        --foreground: #171717;
-        --theme-primary: ${themes[theme].primary};
-        --theme-secondary: ${themes[theme].secondary};
+        --background: #0a0a0a;
+        --foreground: #ededed;
       }
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --background: #0a0a0a;
-          --foreground: #ededed;
-        }
-      }
-      body {
-        background: var(--background);
-        color: var(--foreground);
-        font-family: Arial, Helvetica, sans-serif;
-      }
-      @keyframes pulse-slow {
-        0%, 100% { opacity: 0.6; }
-        50% { opacity: 1; }
-      }
-      .animate-pulse-slow {
-        animation: pulse-slow 4s infinite;
-      }
-      @keyframes spin-slow {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-      .animate-spin-slow {
-        animation: spin-slow 10s linear infinite;
-      }
-      .border-theme { border-color: var(--theme-primary); }
-      .bg-theme-primary { background-color: var(--theme-primary); }
-      .bg-theme-secondary { background-color: var(--theme-secondary); }
-      .hover\\:bg-theme-primary\\/80:hover { background-color: rgba(${parseInt(themes[theme].primary.slice(1), 16) >> 16}, ${parseInt(themes[theme].primary.slice(3, 5), 16)}, ${parseInt(themes[theme].primary.slice(5, 7), 16)}, 0.8); }
-    `;
+    }
+    body {
+      background: var(--background);
+      color: var(--foreground);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    .animate-pulse-slow {
+      animation: pulse-slow 4s infinite;
+    }
+    @keyframes spin-slow {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .animate-spin-slow {
+      animation: spin-slow 10s linear infinite;
+    }
+    .border-theme { border-color: var(--theme-primary); }
+    .bg-theme-primary { background-color: var(--theme-primary); }
+    .bg-theme-secondary { background-color: var(--theme-secondary); }
+    .hover\\:bg-theme-primary\\/80:hover { background-color: rgba(${parseInt(themes[theme].primary.slice(1), 16) >> 16}, ${parseInt(themes[theme].primary.slice(3, 5), 16)}, ${parseInt(themes[theme].primary.slice(5, 7), 16)}, 0.8); }
+  `;
+
+  if (!user) {
+    return <div className="text-white">Loading...</div>;
+  }
 
   return (
     <>
@@ -109,7 +143,7 @@ export default function ProSubscriptionPage() {
                 <li>👑 Pro Badge</li>
               </ul>
               <motion.button
-                onClick={() => handleSubscribe(500)}
+                onClick={() => handleSubscribe(500, 'monthly')}
                 className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:from-indigo-700 hover:to-purple-700 transition-all w-full"
                 whileHover={{ scale: 1.1 }}
               >
@@ -130,7 +164,7 @@ export default function ProSubscriptionPage() {
                 <li>⭐ Early Access to New Features</li>
               </ul>
               <motion.button
-                onClick={() => handleSubscribe(5000)}
+                onClick={() => handleSubscribe(5000, 'yearly')}
                 className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:from-indigo-700 hover:to-purple-700 transition-all w-full"
                 whileHover={{ scale: 1.1 }}
               >
@@ -153,7 +187,6 @@ export default function ProSubscriptionPage() {
           </motion.button>
         </div>
 
-        {/* Theme Modal */}
         <AnimatePresence>
           {showThemeModal && (
             <motion.div
@@ -186,9 +219,9 @@ export default function ProSubscriptionPage() {
               </div>
             </motion.div>
           )}
-        </AnimatePresence>       
+        </AnimatePresence>
       </div>
-      <Toaster /> {/* Added Toaster for react-hot-toast */}
+      <Toaster />
     </>
   );
 }

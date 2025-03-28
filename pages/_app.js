@@ -1,10 +1,14 @@
-import { GameProvider } from "../context/GameContext";
-import "../styles/globals.css"; // If you have global styles
+import { AuthProvider } from '../context/AuthContext';
+import '../styles/globals.css'; // Assuming you have global styles
+import { Toaster } from 'react-hot-toast';
 
-export default function MyApp({ Component, pageProps }) {
+function MyApp({ Component, pageProps }) {
   return (
-    <GameProvider>
+    <AuthProvider>
       <Component {...pageProps} />
-    </GameProvider>
+      <Toaster />
+    </AuthProvider>
   );
 }
+
+export default MyApp;

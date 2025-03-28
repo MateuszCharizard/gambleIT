@@ -1,20 +1,55 @@
-import { useState } from "react";
-import { motion, useAnimation, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
-import { FaArrowLeft, FaWallet, FaUserFriends , FaCrown , FaPalette  } from "react-icons/fa";
-import { useGame } from "../context/GameContext";
-import { toast, Toaster } from "react-hot-toast"; // Updated to react-hot-toast
+import { FaArrowLeft, FaWallet, FaUserFriends, FaCrown, FaPalette } from "react-icons/fa";
+import { supabase } from "../lib/supabase";
+import { toast, Toaster } from "react-hot-toast";
 
 export default function InventoryPage() {
-  const { inventory, setInventory, setTokens, userStats, updateUserStats } = useGame();
+  const [inventory, setInventory] = useState([]);
   const [filter, setFilter] = useState("All");
+  const [user, setUser] = useState(null);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [theme, setTheme] = useState("purple");
 
-  const handleSell = (item) => {
-    setTokens((prev) => prev + item.value);
-    setInventory(inventory.filter((i) => i !== item));
-    updateUserStats({ totalValueWon: (userStats.totalValueWon || 0) + item.value });
-    toast.success(`Sold ${item.name} for ${item.value} Tokens!`); // Updated to react-hot-toast
+  useEffect(() => {
+    const fetchUserAndInventory = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      if (user) {
+        const { data } = await supabase
+          .from('inventory')
+          .select('*')
+          .eq('user_id', user.id);
+        setInventory(data || []);
+      }
+    };
+    fetchUserAndInventory();
+
+    const subscription = supabase
+      .channel('inventory-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, (payload) => {
+        fetchUserAndInventory();
+      })
+      .subscribe();
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSell = async (item) => {
+    if (!user) return;
+    const { error } = await supabase
+      .from('inventory')
+      .delete()
+      .eq('id', item.id);
+    
+    if (!error) {
+      setInventory(inventory.filter(i => i.id !== item.id));
+      toast.success(`Sold ${item.item_name} for ${item.value} Tokens!`);
+    } else {
+      toast.error('Failed to sell item');
+    }
   };
 
   const containerVariants = {
@@ -32,8 +67,7 @@ export default function InventoryPage() {
   };
 
   const filteredInventory = filter === "All" ? inventory : inventory.filter((item) => item.rarity === filter);
-  const [showThemeModal, setShowThemeModal] = useState(false);
-  const [theme, setTheme] = useState("purple");
+
   const themes = {
     green: { primary: "#16a34a", secondary: "#22c55e" },
     blue: { primary: "#2563eb", secondary: "#3b82f6" },
@@ -82,7 +116,9 @@ export default function InventoryPage() {
     .hover\\:bg-theme-primary\\/80:hover { background-color: rgba(${parseInt(themes[theme].primary.slice(1), 16) >> 16}, ${parseInt(themes[theme].primary.slice(3, 5), 16)}, ${parseInt(themes[theme].primary.slice(5, 7), 16)}, 0.8); }
   `;
 
-
+  if (!user) {
+    return <div className="text-white">Loading...</div>;
+  }
 
   return (
     <>
@@ -117,14 +153,14 @@ export default function InventoryPage() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-h-[60vh] overflow-y-auto">
-            {filteredInventory.map((item, idx) => (
+            {filteredInventory.map((item) => (
               <motion.div
-                key={idx}
+                key={item.id}
                 className={`bg-gray-800 p-4 rounded-xl border-2 ${glowEffects[item.glow]} flex flex-col items-center`}
                 whileHover={{ scale: 1.05 }}
               >
-                <Image src={item.image} alt={item.name} width={100} height={100} className="object-contain mb-2" />
-                <p className={`text-sm font-semibold ${item.color} text-center`}>{item.name}</p>
+                <Image src={item.image} alt={item.item_name} width={100} height={100} className="object-contain mb-2" />
+                <p className={`text-sm font-semibold ${item.color} text-center`}>{item.item_name}</p>
                 <p className="text-gray-400 text-xs">{item.value} Tokens</p>
                 <motion.button
                   onClick={() => handleSell(item)}
@@ -136,7 +172,6 @@ export default function InventoryPage() {
               </motion.div>
             ))}
           </div>
-        
         </motion.div>
         <div className="fixed bottom-8 right-8 flex flex-col space-y-4 z-20">
           <motion.button className="bg-indigo-600 p-4 rounded-full shadow-lg" whileHover={{ scale: 1.1 }} onClick={() => toast("Live chat coming soon!")}>
@@ -152,7 +187,6 @@ export default function InventoryPage() {
           </motion.button>
         </div>
 
-        {/* Theme Modal */}
         <AnimatePresence>
           {showThemeModal && (
             <motion.div
@@ -185,12 +219,9 @@ export default function InventoryPage() {
               </div>
             </motion.div>
           )}
-        </AnimatePresence>   
-
-
-
+        </AnimatePresence>
       </div>
-      <Toaster /> {/* Added Toaster for react-hot-toast */}
+      <Toaster />
     </>
   );
 }
