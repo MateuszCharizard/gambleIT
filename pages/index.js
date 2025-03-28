@@ -15,7 +15,7 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function CaseOpenerPro() {
-  const [tokens, setTokens] = useState(1000);
+  const [tokens, setTokens] = useState(0); // Start at 0, will be set by fetch
   const [inventory, setInventory] = useState([]);
   const [casesOpened, setCasesOpened] = useState(0);
   const [bestDrop, setBestDrop] = useState("None");
@@ -42,64 +42,70 @@ export default function CaseOpenerPro() {
 
   const { user: authUser, signIn, signUp, signOut } = useAuth();
 
-  // Fetch and sync user stats from Supabase
+  // Fetch user stats from Supabase on mount or auth change
   useEffect(() => {
     setUser(authUser);
-    setLoading(false);
+    if (!authUser) {
+      setLoading(false);
+      return;
+    }
 
-    if (authUser) {
-      const fetchUserData = async () => {
+    const fetchUserData = async () => {
+      try {
+        // Fetch inventory
         const { data: invData, error: invError } = await supabase
           .from('inventory')
           .select('*')
           .eq('user_id', authUser.id);
-        if (!invError) {
-          setInventory(invData || []);
-        } else {
-          console.error('Error fetching inventory:', invError);
-        }
-  
+        if (invError) throw invError;
+        setInventory(invData || []);
+
+        // Fetch user stats
         let { data: statsData, error: statsError } = await supabase
           .from('user_stats')
           .select('*')
           .eq('user_id', authUser.id)
           .single();
-  
+
         if (statsError && statsError.code === 'PGRST116') {
+          // No stats exist, initialize with defaults
+          const defaultStats = {
+            user_id: authUser.id,
+            tokens: 1000,
+            cases_opened: 0,
+            best_drop: "None",
+            win_rate: 0,
+            drop_history: [],
+            total_value_won: 0,
+          };
           const { error: insertError } = await supabase
             .from('user_stats')
-            .insert({ user_id: authUser.id });
-          if (!insertError) {
-            statsData = {
-              user_id: authUser.id,
-              tokens: 1000,
-              cases_opened: 0,
-              best_drop: "None",
-              win_rate: 0,
-              drop_history: [],
-              total_value_won: 0,
-            };
-          } else {
-            console.error('Error initializing stats:', insertError);
-            return;
-          }
+            .insert(defaultStats);
+          if (insertError) throw insertError;
+          statsData = defaultStats;
         } else if (statsError) {
-          console.error('Error fetching stats:', statsError);
-          return;
+          throw statsError;
         }
-  
+
+        // Set local state from fetched data
         setTokens(statsData.tokens);
         setCasesOpened(statsData.cases_opened);
         setBestDrop(statsData.best_drop);
         setWinRate(statsData.win_rate);
-        setDropHistory(statsData.drop_history);
+        setDropHistory(statsData.drop_history || []);
         setTotalValueWon(statsData.total_value_won);
-      };
-      fetchUserData();
-    }
+      } catch (error) {
+        console.error('Error fetching user data:', error.message);
+        toast.error('Failed to load user data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
   }, [authUser]);
 
-  // Update Supabase with current stats
+  // Update Supabase with current stats (debounced)
   const updateStatsInDB = async () => {
     if (!user) return;
     const stats = {
@@ -110,18 +116,22 @@ export default function CaseOpenerPro() {
       drop_history: dropHistory,
       total_value_won: totalValueWon,
     };
-    const { error } = await supabase
-      .from('user_stats')
-      .upsert({ user_id: user.id, ...stats });
-    if (error) {
-      console.error('Error updating stats:', error);
+    try {
+      const { error } = await supabase
+        .from('user_stats')
+        .upsert({ user_id: user.id, ...stats });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating stats:', error.message);
     }
   };
 
-  // Call updateStatsInDB whenever stats change
   useEffect(() => {
-    if (user) updateStatsInDB();
-  }, [tokens, casesOpened, bestDrop, winRate, dropHistory, totalValueWon, user, updateStatsInDB]);
+    if (user) {
+      const debounce = setTimeout(() => updateStatsInDB(), 500); // Debounce by 500ms
+      return () => clearTimeout(debounce);
+    }
+  }, [tokens, casesOpened, bestDrop, winRate, dropHistory, totalValueWon, user]);
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -260,7 +270,7 @@ export default function CaseOpenerPro() {
     }
     return () => clearInterval(interval);
   }, [autoOpen, tokens, caseCost, multiplier, handleOpenCase]);
-  
+
   const handleSaveDrop = async () => {
     if (currentDrop && user) {
       const { error } = await supabase
@@ -541,7 +551,7 @@ export default function CaseOpenerPro() {
                   <p className={`text-md my-3 text-center font-semibold ${currentDrop.color}`}>
                     {currentDrop.name} ({currentDrop.value.toLocaleString()} Tokens)
                   </p>
-                  <p className="text-gray-300 text-center text-xs">Rarity: <span className="font-bold">{currentDrop.rarity}</span></p>
+                  <p className="text-gray-400 text-xs text-center">Rarity: <span className="font-bold">{currentDrop.rarity}</span></p>
                   <div className="flex justify-center space-x-4 mt-4">
                     <motion.button
                       onClick={handleSaveDrop}
