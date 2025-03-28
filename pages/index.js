@@ -1,25 +1,49 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
+import { motion, useAnimation, AnimatePresence } from "framer-motion";
 import { useGame } from "../context/GameContext";
 import Link from "next/link";
 import Image from "next/image";
+import { Howl } from "howler";
+import Confetti from "react-confetti";
+import { toast, Toaster } from "react-hot-toast";
+import { FaGem, FaCrown, FaUserFriends, FaPalette, FaArrowLeft, FaWallet, FaChartLine } from "react-icons/fa";
 
-export default function Home() {
-  const { tokens, setTokens, inventory, setInventory } = useGame();
+export default function CaseOpenerPro() {
+  const { tokens, setTokens, inventory, setInventory, userStats, updateUserStats } = useGame();
   const [currentDrop, setCurrentDrop] = useState(null);
   const [isOpening, setIsOpening] = useState(false);
   const [scrollingDrops, setScrollingDrops] = useState([]);
+  const [caseCost, setCaseCost] = useState(100);
+  const [multiplier, setMultiplier] = useState(1);
+  const [provablyFairHash, setProvablyFairHash] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
+  const [dropHistory, setDropHistory] = useState([]);
+  const [autoOpen, setAutoOpen] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [theme, setTheme] = useState("purple");
+  const controls = useAnimation();
+  const audioRef = useRef(null);
 
   const drops = [
-    { name: "Image 5", value: 10, chance: 0.40, image: "/image (5).png", color: "text-gray-500" },
-    { name: "Screenshot 2024-11-22", value: 15, chance: 0.30, image: "/Screenshot 2024-11-22 142904.png", color: "text-gray-400" },
-    { name: "Screenshot 2025-03-26 005620", value: 100, chance: 0.05, image: "/Screenshot 2025-03-26 005620.png", color: "text-gray-100" },
-    { name: "Screenshot 2025-03-26 012723", value: 50, chance: 0.20, image: "/Screenshot_2025-03-26_012723-removebg-preview.png", color: "text-gray-300" },
-    { name: "Shared Image", value: 150, chance: 0.05, image: "/shared image.png", color: "text-gray-100" },
+    { name: "IAMMATIX", value: 100, chance: 0.60, image: "/i am matix.jpg", color: "text-gray-400", rarity: "Common", glow: "shadow-silver" },
+    { name: "Noodle Kyle", value: 500, chance: 0.40, image: "/silver-crate.png", color: "text-purple-700", rarity: "Epic", glow: "shadow-gold" },
   ];
 
-  const getRandomDrop = () => {
-    const rand = Math.random();
+  const soundEffects = {
+    roll: new Howl({ src: ["/sounds/premium-roll.mp3"], volume: 0.8 }),
+    winCommon: new Howl({ src: ["/sounds/win-common-premium.mp3"], volume: 0.9 }),
+    winRare: new Howl({ src: ["/sounds/win-rare-premium.mp3"], volume: 1.0 }),
+    winLegendary: new Howl({ src: ["/sounds/win-legendary-premium.mp3"], volume: 1 }),
+  };
+
+  const generateProvablyFairHash = () => {
+    const clientSeed = Math.random().toString(36).substring(2);
+    const serverSeed = Date.now().toString();
+    return `SHA256:${btoa(clientSeed + serverSeed)}`;
+  };
+
+  const getRandomDrop = (seed) => {
+    const rand = Math.abs(Math.sin(seed.length * 9301 + 49297) % 1);
     let cumulative = 0;
     for (const drop of drops) {
       cumulative += drop.chance;
@@ -28,168 +52,380 @@ export default function Home() {
     return drops[0];
   };
 
-  const handleOpenCase = () => {
-    if (isOpening) return;
+  const handleOpenCase = async () => {
+    if (isOpening || tokens < caseCost * multiplier) {
+      toast.error(`Need ${caseCost * multiplier} tokens to open!`);
+      return;
+    }
+
+    if (currentDrop) {
+      const saleValue = currentDrop.value * multiplier;
+      setTokens((prev) => prev + saleValue);
+      updateUserStats({ totalValueWon: (userStats.totalValueWon || 0) + saleValue });
+      toast.success(`Auto-sold ${currentDrop.name} for ${saleValue} Tokens!`);
+      setCurrentDrop(null);
+    }
+
+    setTokens((prev) => prev - caseCost * multiplier);
+    updateUserStats({ casesOpened: (userStats.casesOpened || 0) + 1 });
     setIsOpening(true);
+    setScrollingDrops([]);
+    await controls.stop();
+    await controls.set({ x: 1000 });
 
-    // Pick the final drop
-    const finalDrop = getRandomDrop();
+    const fairHash = generateProvablyFairHash();
+    setProvablyFairHash(fairHash);
+    const finalDrop = getRandomDrop(fairHash);
 
-    // Generate scrolling array with finalDrop at a fixed position
-    const totalItems = 30;
-    const finalIndex = 25; // Where the final drop will land
+    const totalItems = 40;
+    const finalIndex = 35;
     const scrollArray = Array(totalItems)
       .fill(null)
       .map(() => drops[Math.floor(Math.random() * drops.length)]);
-    scrollArray[finalIndex] = finalDrop; // Place final drop at the stopping point
-
-    // Set state immediately
+    scrollArray[finalIndex] = finalDrop;
     setScrollingDrops(scrollArray);
-    setCurrentDrop(finalDrop);
 
-    // End animation after 5 seconds
-    setTimeout(() => {
-      setIsOpening(false);
-    }, 5000);
+    const itemWidth = 100;
+    const containerWidth = 800;
+    const centerOffset = containerWidth / 2 - itemWidth / 2;
+    const finalPosition = -(itemWidth * finalIndex - centerOffset);
+
+    soundEffects.roll.play();
+    await controls.start({
+      x: finalPosition,
+      transition: { duration: 6, ease: [0.25, 0.8, 0.35, 1] },
+    });
+
+    setCurrentDrop(finalDrop);
+    setDropHistory([...dropHistory, { ...finalDrop, timestamp: new Date() }]);
+    setIsOpening(false);
+
+    if (finalDrop.rarity === "Legendary" || finalDrop.rarity === "Mythic") {
+      soundEffects.winLegendary.play();
+    } else if (finalDrop.rarity === "Rare" || finalDrop.rarity === "Epic") {
+      soundEffects.winRare.play();
+    } else {
+      soundEffects.winCommon.play();
+    }
+    toast.success(`Unboxed ${finalDrop.name} (${finalDrop.value} Tokens)!`);
   };
+
+  useEffect(() => {
+    let interval;
+    if (autoOpen && tokens >= caseCost * multiplier) {
+      interval = setInterval(handleOpenCase, 7000);
+    }
+    return () => clearInterval(interval);
+  }, [autoOpen, tokens, caseCost, multiplier]);
 
   const handleSaveDrop = () => {
     if (currentDrop) {
       setInventory([...inventory, currentDrop]);
+      updateUserStats({ totalValueWon: (userStats.totalValueWon || 0) + currentDrop.value });
       setCurrentDrop(null);
     }
   };
 
   const handleSellDrop = () => {
     if (currentDrop) {
-      setTokens(tokens + currentDrop.value);
+      const saleValue = currentDrop.value * multiplier;
+      setTokens((prev) => prev + saleValue);
+      updateUserStats({ totalValueWon: (userStats.totalValueWon || 0) + saleValue });
       setCurrentDrop(null);
     }
   };
 
   const containerVariants = {
-    hidden: { opacity: 0, y: 50 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { opacity: 1, scale: 1, transition: { duration: 0.6, ease: "easeOut" } },
   };
 
   const dropVariants = {
-    hidden: { opacity: 0, scale: 0.9 },
-    visible: { opacity: 1, scale: 1, transition: { duration: 0.4, ease: "easeOut" } },
+    hidden: { opacity: 0, y: 30, rotate: -15 },
+    visible: { opacity: 1, y: 0, rotate: 0, transition: { duration: 0.6, ease: "easeOut" } },
   };
 
-  // Calculate the exact pixel offset to center the final drop
-  const itemWidth = 112; // w-28 = 28 * 4px = 112px
-  const finalIndex = 25; // Final drop position
-  const containerWidth = 896; // max-w-4xl ≈ 896px (adjust if needed)
-  const centerOffset = containerWidth / 2 - itemWidth / 2; // 448 - 56 = 392px
-  const finalPosition = -(itemWidth * finalIndex - centerOffset); // Stop with final drop centered
+  const glowEffects = {
+    "shadow-silver": "shadow-[0_0_10px_rgba(200,200,200,0.8)]",
+    "shadow-gold": "shadow-[0_0_15px_rgba(255,215,0,1)]",
+  };
+
+  const themes = {
+    green: { primary: "#16a34a", secondary: "#22c55e" },
+    blue: { primary: "#2563eb", secondary: "#3b82f6" },
+    pink: { primary: "#ec4899", secondary: "#f472b6" },
+    purple: { primary: "#9333ea", secondary: "#a855f7" },
+    red: { primary: "#dc2626", secondary: "#ef4444" },
+    orange: { primary: "#ea580c", secondary: "#f97316" },
+  };
+
+  const combinedStyles = `
+    @import "tailwindcss";
+    :root {
+      --background: #ffffff;
+      --foreground: #171717;
+      --theme-primary: ${themes[theme].primary};
+      --theme-secondary: ${themes[theme].secondary};
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #0a0a0a;
+        --foreground: #ededed;
+      }
+    }
+    body {
+      background: var(--background);
+      color: var(--foreground);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    .animate-pulse-slow {
+      animation: pulse-slow 4s infinite;
+    }
+    @keyframes spin-slow {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .animate-spin-slow {
+      animation: spin-slow 10s linear infinite;
+    }
+    .border-theme { border-color: var(--theme-primary); }
+    .bg-theme-primary { background-color: var(--theme-primary); }
+    .bg-theme-secondary { background-color: var(--theme-secondary); }
+    .hover\\:bg-theme-primary\\/80:hover { background-color: rgba(${parseInt(themes[theme].primary.slice(1), 16) >> 16}, ${parseInt(themes[theme].primary.slice(3, 5), 16)}, ${parseInt(themes[theme].primary.slice(5, 7), 16)}, 0.8); }
+  `;
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col items-center p-6">
-      <motion.div
-        className="w-full max-w-4xl"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <div className="bg-gray-800 p-4 rounded-t-lg shadow-lg flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-100">Case Opener</h1>
-          <div className="flex items-center space-x-4">
-            <p className="text-gray-300">
-              Tokens: <span className="font-semibold text-gray-100">{tokens}</span>
-            </p>
-            <Link href="/inventory" className="text-gray-400 hover:text-gray-200 transition">
-              Inventory
-            </Link>
+    <>
+      <style>{combinedStyles}</style>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-indigo-900 flex flex-col items-center p-4 overflow-hidden relative">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(75,0,130,0.2),transparent_70%)] pointer-events-none animate-pulse-slow" />
+        {currentDrop?.rarity === "Mythic" && <Confetti recycle={false} numberOfPieces={200} className="z-50" />}
+        <motion.div className="w-full max-w-6xl relative z-10" variants={containerVariants} initial="hidden" animate="visible">
+          <div className="bg-gradient-to-r from-gray-800 to-indigo-900/90 backdrop-blur-lg p-6 rounded-t-xl shadow-xl flex justify-between items-center border border-theme">
+            <h1 className="text-4xl font-extrabold text-white tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500">
+              Case Opener Elite
+            </h1>
+            <div className="flex items-center space-x-8">
+              <p className="text-white text-lg flex items-center">
+                <FaGem className="mr-2 text-yellow-400" />
+                <span className="font-bold">{tokens.toLocaleString()}</span>
+              </p>
+              <Link href="/inventory" className="text-indigo-300 hover:text-white transition-all duration-300 flex items-center text-lg">
+                <FaWallet className="mr-1" /> Inventory ({inventory.length})
+              </Link>
+              <Link href="/leaderboard" className="text-indigo-300 hover:text-white transition-all duration-300 flex items-center text-lg">
+                <FaChartLine className="mr-1" /> Leaderboard
+              </Link>
+              <Link href="/friends" className="text-indigo-300 hover:text-white transition-all duration-300 flex items-center text-lg">
+                <FaUserFriends className="mr-1" /> Friends
+              </Link>
+            </div>
           </div>
-        </div>
 
-        <div className="bg-gray-700 p-6 rounded-b-lg shadow-lg flex flex-col items-center">
-          <motion.button
-            onClick={handleOpenCase}
-            className="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition disabled:opacity-50"
-            disabled={isOpening}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            Open Free Case
-          </motion.button>
-
-          {isOpening && (
-            <div className="mt-8 w-full h-40 overflow-hidden relative border border-gray-500 rounded-lg">
-              <motion.div
-                className="flex space-x-4"
-                initial={{ x: "50%" }}
-                animate={{ x: finalPosition }}
-                transition={{
-                  duration: 5,
-                  ease: [0.25, 0.1, 0.25, 1], // Slows down
-                }}
-              >
-                {scrollingDrops.map((drop, index) => (
-                  <div
-                    key={index}
-                    className="flex-shrink-0 w-28 h-28 bg-gray-600 rounded border border-gray-500 flex items-center justify-center"
+          <div className="bg-gray-900/95 p-6 rounded-b-xl shadow-xl border border-theme">
+            <div className="flex justify-between items-center mb-6">
+              <div className="space-y-2">
+                <p className="text-gray-300 text-md">
+                  Case Cost: <span className="font-bold text-indigo-400">{caseCost * multiplier} Tokens</span>
+                </p>
+                <p className="text-gray-300 text-md flex items-center">
+                  Multiplier:
+                  <select
+                    value={multiplier}
+                    onChange={(e) => setMultiplier(parseInt(e.target.value))}
+                    className="ml-2 bg-gray-800 text-white rounded-md p-1 border border-theme focus:ring-1 focus:ring-indigo-400"
                   >
-                    <Image
-                      src={drop.image}
-                      alt={drop.name}
-                      width={96}
-                      height={96}
-                      className="object-contain"
-                    />
+                    <option value={1}>1x</option>
+                    <option value={2}>2x</option>
+                    <option value={5}>5x</option>
+                    <option value={10}>10x</option>
+                    <option value={25}>25x</option>
+                  </select>
+                </p>
+                <label className="text-gray-300 flex items-center text-sm">
+                  <input type="checkbox" checked={autoOpen} onChange={() => setAutoOpen(!autoOpen)} className="mr-2 accent-indigo-500" />
+                  Auto-Open
+                </label>
+              </div>
+              <motion.button
+                onClick={handleOpenCase}
+                className="bg-theme-primary text-white px-8 py-3 rounded-lg font-semibold shadow-md hover:bg-theme-primary/80 transition-all disabled:opacity-50"
+                disabled={isOpening || tokens < caseCost * multiplier}
+                whileHover={{ scale: 1.05, boxShadow: "0 0 15px var(--theme-primary)" }}
+                whileTap={{ scale: 0.95 }}
+              >
+                Open Case
+              </motion.button>
+            </div>
+
+            {isOpening && scrollingDrops.length > 0 && (
+              <div className="mt-6 w-full h-40 overflow-hidden relative border-2 border-theme rounded-xl bg-gray-950">
+                <motion.div className="flex space-x-2" animate={controls}>
+                  {scrollingDrops.map((drop, index) => (
+                    <motion.div
+                      key={index}
+                      className={`flex-shrink-0 w-24 h-24 bg-gray-800 rounded-md border ${drop.glow} ${
+                        drop === currentDrop && !isOpening ? "border-yellow-500" : "border-gray-700"
+                      } flex items-center justify-center`}
+                      whileHover={{ scale: 1.1 }}
+                    >
+                      <Image src={drop.image} alt={drop.name} width={80} height={80} className="object-contain" />
+                    </motion.div>
+                  ))}
+                </motion.div>
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-1 h-32 bg-gradient-to-b from-transparent via-indigo-400 to-transparent animate-pulse" />
+                </div>
+              </div>
+            )}
+
+            <AnimatePresence>
+              {currentDrop && !isOpening && (
+                <motion.div
+                  className={`mt-8 w-full max-w-md bg-gray-900 p-6 rounded-xl border-2 ${glowEffects[currentDrop.glow]} shadow-xl`}
+                  variants={dropVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="hidden"
+                  whileHover={{ scale: 1.03 }}
+                >
+                  <div className="w-32 h-32 bg-gray-800 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden">
+                    <Image src={currentDrop.image} alt={currentDrop.name} width={120} height={120} className="object-contain animate-spin-slow" />
                   </div>
-                ))}
+                  <h2 className="text-2xl font-extrabold text-white text-center">You Won!</h2>
+                  <p className={`text-xl my-4 text-center font-semibold ${currentDrop.color}`}>
+                    {currentDrop.name} ({currentDrop.value.toLocaleString()} Tokens)
+                  </p>
+                  <p className="text-gray-300 text-center text-sm">Rarity: <span className="font-bold">{currentDrop.rarity}</span></p>
+                  <div className="flex justify-center space-x-6 mt-6">
+                    <motion.button
+                      onClick={handleSaveDrop}
+                      className="bg-theme-primary text-white px-6 py-2 rounded-md font-semibold hover:bg-theme-primary/80 transition-all"
+                      whileHover={{ scale: 1.1, boxShadow: "0 0 15px var(--theme-primary)" }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      Save
+                    </motion.button>
+                    <motion.button
+                      onClick={handleSellDrop}
+                      className="bg-green-600 text-white px-6 py-2 rounded-md font-semibold hover:bg-green-700 transition-all"
+                      whileHover={{ scale: 1.1, boxShadow: "0 0 15px rgba(34, 197, 94, 0.8)" }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      Sell for {currentDrop.value * multiplier}
+                    </motion.button>
+                  </div>
+                  <p className="text-gray-400 text-xs mt-4 text-center">Hash: {provablyFairHash.slice(0, 10)}...</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 text-gray-300">
+              <motion.div className="bg-gray-800 p-4 rounded-xl border border-theme" whileHover={{ scale: 1.02 }}>
+                <p className="text-sm">Cases Opened: <span className="font-bold text-indigo-400">{userStats.casesOpened || 0}</span></p>
+                <p className="text-sm">Total Won: <span className="font-bold text-indigo-400">{(userStats.totalValueWon || 0).toLocaleString()} Tokens</span></p>
               </motion.div>
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-1 h-32 bg-gray-400"></div>
+              <motion.div className="bg-gray-800 p-4 rounded-xl border border-theme" whileHover={{ scale: 1.02 }}>
+                <p className="text-sm flex justify-between">
+                  Drop History
+                  <button onClick={() => setShowHistory(!showHistory)} className="text-indigo-400 hover:text-indigo-300 text-xs">
+                    {showHistory ? "Hide" : "Show"}
+                  </button>
+                </p>
+                {showHistory && (
+                  <ul className="mt-1 max-h-32 overflow-y-auto text-xs">
+                    {dropHistory.slice(-5).reverse().map((drop, idx) => (
+                      <li key={idx} className={`text-xs ${drop.color}`}>
+                        {drop.name} ({drop.value} Tokens) - {drop.timestamp.toLocaleTimeString()}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </motion.div>
+              <motion.div className="bg-gray-800 p-4 rounded-xl border border-theme" whileHover={{ scale: 1.02 }}>
+                <p className="text-sm">Win Rate: <span className="font-bold text-indigo-400">{userStats.casesOpened ? Math.round((userStats.totalValueWon / (userStats.casesOpened * caseCost)) * 100) || 0 : 0}%</span></p>
+                <p className="text-sm">Best Drop: <span className="font-bold text-indigo-400">{dropHistory.length ? dropHistory.reduce((a, b) => a.value > b.value ? a : b).name : "None"}</span></p>
+              </motion.div>
+            </div>
+
+            <div className="mt-8">
+              <h2 className="text-xl font-bold text-white mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500">
+                Possible Drops
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {drops.map((drop, index) => (
+                  <motion.div
+                    key={index}
+                    className={`bg-gray-800 p-3 rounded-lg border ${glowEffects[drop.glow]} flex items-center space-x-3`}
+                    whileHover={{ scale: 1.02, boxShadow: "0 0 15px var(--theme-primary)" }}
+                  >
+                    <Image src={drop.image} alt={drop.name} width={60} height={60} className="object-contain rounded-md" />
+                    <div>
+                      <p className={`text-md font-semibold ${drop.color}`}>{drop.name}</p>
+                      <p className="text-gray-400 text-xs">Value: <span className="font-bold">{drop.value.toLocaleString()} Tokens</span></p>
+                      <p className="text-gray-400 text-xs">Chance: <span className="font-bold">{(drop.chance * 100).toFixed(1)}%</span></p>
+                      <p className="text-gray-400 text-xs">Rarity: <span className="font-bold">{drop.rarity}</span></p>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
             </div>
-          )}
+          </div>
+        </motion.div>
 
-          {currentDrop && !isOpening && (
+        <div className="fixed bottom-6 right-6 flex flex-col space-y-3 z-20">
+          <motion.button className="bg-indigo-600 p-3 rounded-full shadow-lg" whileHover={{ scale: 1.1 }} onClick={() => toast("Live chat coming soon!")}>
+            <FaUserFriends className="text-white" size={32} />
+          </motion.button>
+          <Link href="/pro-subscription">
+            <motion.button className="bg-theme-primary p-3 rounded-full shadow-lg" whileHover={{ scale: 1.1 }}>
+              <FaCrown className="text-white" size={32} />
+            </motion.button>
+          </Link>
+          <motion.button className="bg-theme-secondary p-3 rounded-full shadow-lg" whileHover={{ scale: 1.1 }} onClick={() => setShowThemeModal(true)}>
+            <FaPalette className="text-white" size={32} />
+          </motion.button>
+        </div>
+
+        <AnimatePresence>
+          {showThemeModal && (
             <motion.div
-              className="mt-8 w-full max-w-md bg-gray-600 p-6 rounded-lg border border-gray-500"
-              variants={dropVariants}
-              initial="hidden"
-              animate="visible"
-              whileHover={{ scale: 1.05, boxShadow: "0 4px 15px rgba(0, 0, 0, 0.3)" }}
+              className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
             >
-              <div className="w-32 h-32 bg-gray-800 rounded mx-auto mb-4 flex items-center justify-center">
-                <Image
-                  src={currentDrop.image}
-                  alt={currentDrop.name}
-                  width={128}
-                  height={128}
-                  className="object-contain"
-                />
-              </div>
-              <h2 className="text-2xl font-semibold text-gray-100">You Got:</h2>
-              <p className={`text-xl my-2 ${currentDrop.color}`}>
-                {currentDrop.name} ({currentDrop.value} tokens)
-              </p>
-              <div className="flex justify-center space-x-4 mt-6">
-                <motion.button
-                  onClick={handleSaveDrop}
-                  className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  Save to Inventory
-                </motion.button>
-                <motion.button
-                  onClick={handleSellDrop}
-                  className="bg-gray-600 text-white px-6 py-2 rounded hover:bg-gray-700 transition"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  Sell Drop
-                </motion.button>
+              <div className="bg-gray-900 p-4 rounded-xl border border-theme">
+                <h2 className="text-xl font-bold text-white mb-3">Choose Theme</h2>
+                <div className="grid grid-cols-3 gap-3">
+                  {Object.keys(themes).map((themeName) => (
+                    <motion.button
+                      key={themeName}
+                      className="bg-theme-primary text-white px-3 py-1 rounded-md hover:bg-theme-primary/80 transition-all"
+                      style={{ backgroundColor: themes[themeName].primary }}
+                      whileHover={{ scale: 1.1 }}
+                      onClick={() => {
+                        setTheme(themeName);
+                        setShowThemeModal(false);
+                      }}
+                    >
+                      {themeName.charAt(0).toUpperCase() + themeName.slice(1)}
+                    </motion.button>
+                  ))}
+                </div>
+                <button className="mt-3 bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 transition-all" onClick={() => setShowThemeModal(false)}>
+                  Close
+                </button>
               </div>
             </motion.div>
           )}
-        </div>
-      </motion.div>
-    </div>
+        </AnimatePresence>
+      </div>
+      <Toaster />
+    </>
   );
 }

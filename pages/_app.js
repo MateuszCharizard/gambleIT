@@ -1,12 +1,10 @@
 import { GameProvider } from "../context/GameContext";
-import "../styles/globals.css";
+import "../styles/globals.css"; // If you have global styles
 
-function MyApp({ Component, pageProps }) {
+export default function MyApp({ Component, pageProps }) {
   return (
     <GameProvider>
       <Component {...pageProps} />
     </GameProvider>
   );
 }
-
-export default MyApp;
