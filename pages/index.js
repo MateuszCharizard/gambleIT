@@ -38,6 +38,7 @@ export default function CaseOpenerPro() {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(true);
   const [drops, setDrops] = useState([]);
+  const [rollCounter, setRollCounter] = useState(0); // Added roll counter
   const controls = useAnimation();
   const audioRef = useRef(null);
 
@@ -189,17 +190,22 @@ export default function CaseOpenerPro() {
   const generateProvablyFairHash = () => {
     const clientSeed = Math.random().toString(36).substring(2);
     const serverSeed = Date.now().toString();
-    return `SHA256:${btoa(clientSeed + serverSeed)}`;
+    return `${clientSeed}:${serverSeed}:${rollCounter}`;
   };
 
   const getRandomDrop = (seed) => {
     if (drops.length === 0) return null;
-    // Use a simple hash to seed a pseudo-random number generator
-    let seedValue = 0;
-    for (let i = 0; i < seed.length; i++) {
-      seedValue = (seedValue * 31 + seed.charCodeAt(i)) & 0xFFFFFFFF;
+    // Split the seed into components
+    const [clientSeed, serverSeed, counter] = seed.split(':');
+    // Use a more robust hash (FNV-1a)
+    let hash = 2166136261; // FNV offset basis
+    const fnvPrime = 16777619;
+    const seedString = clientSeed + serverSeed + counter;
+    for (let i = 0; i < seedString.length; i++) {
+      hash ^= seedString.charCodeAt(i);
+      hash = (hash * fnvPrime) & 0xFFFFFFFF;
     }
-    const rand = Math.abs(seedValue) / 0xFFFFFFFF; // Normalize to 0-1
+    const rand = (hash / 0xFFFFFFFF); // Normalize to 0-1
     const totalChance = drops.reduce((sum, drop) => sum + drop.chance, 0);
     if (totalChance <= 0) {
       console.warn('Total chance is 0, selecting first item as fallback');
@@ -250,6 +256,7 @@ export default function CaseOpenerPro() {
     const fairHash = generateProvablyFairHash();
     setProvablyFairHash(fairHash);
     const finalDrop = getRandomDrop(fairHash);
+    setRollCounter((prev) => prev + 1); // Increment counter after each roll
 
     if (!finalDrop) {
       setIsOpening(false);
@@ -555,27 +562,48 @@ export default function CaseOpenerPro() {
             {isOpening && scrollingDrops.length > 0 && (
               <div className="mt-6 w-full h-40 overflow-hidden relative border-2 border-theme rounded-xl bg-gray-950">
                 <motion.div className="flex space-x-2" animate={controls}>
-                  {scrollingDrops.map((drop, index) => (
-                    <motion.div
-                      key={index}
-                      className={`flex-shrink-0 w-24 h-24 bg-gray-800 rounded-md border ${drop.glow} ${
-                        drop === currentDrop && !isOpening ? "border-yellow-500" : "border-gray-700"
-                      } flex items-center justify-center`}
-                      whileHover={{ scale: 1.1 }}
-                    >
-                      <Image
-                        src={drop.image_url || '/images/fallback.png'}
-                        alt={drop.name}
-                        width={80}
-                        height={80}
-                        className="object-contain"
-                        onError={(e) => {
-                          console.error(`Failed to load image for ${drop.name}: ${drop.image_url}`);
-                          e.target.src = '/images/fallback.png';
-                        }}
-                      />
-                    </motion.div>
-                  ))}
+                  {scrollingDrops.map((drop, index) => {
+                    const [imageSrc, setImageSrc] = useState(null);
+                    const [isLoading, setIsLoading] = useState(true);
+
+                    useEffect(() => {
+                      const img = new Image();
+                      img.src = drop.image_url;
+                      img.onload = () => {
+                        setImageSrc(drop.image_url);
+                        setIsLoading(false);
+                      };
+                      img.onerror = () => {
+                        console.error(`Failed to load image for ${drop.name}: ${drop.image_url}`);
+                        setImageSrc('/images/fallback.png');
+                        setIsLoading(false);
+                      };
+                    }, [drop.image_url]);
+
+                    return (
+                      <motion.div
+                        key={index}
+                        className={`flex-shrink-0 w-24 h-24 bg-gray-800 rounded-md border ${drop.glow} ${
+                          drop === currentDrop && !isOpening ? "border-yellow-500" : "border-gray-700"
+                        } flex items-center justify-center`}
+                        whileHover={{ scale: 1.1 }}
+                      >
+                        {isLoading ? (
+                          <div className="w-24 h-24 bg-gray-700 rounded-md flex items-center justify-center">
+                            <span className="text-gray-400 text-xs">Loading...</span>
+                          </div>
+                        ) : (
+                          <Image
+                            src={imageSrc || '/images/fallback.png'}
+                            alt={drop.name}
+                            width={80}
+                            height={80}
+                            className="object-contain"
+                          />
+                        )}
+                      </motion.div>
+                    );
+                  })}
                 </motion.div>
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="w-1 h-32 bg-gradient-to-b from-transparent via-indigo-400 to-transparent animate-pulse" />
@@ -594,17 +622,38 @@ export default function CaseOpenerPro() {
                   whileHover={{ scale: 1.03 }}
                 >
                   <div className="w-24 h-24 bg-gray-800 rounded-full mx-auto mb-3 flex items-center justify-center overflow-hidden">
-                    <Image
-                      src={currentDrop.image_url || '/images/fallback.png'}
-                      alt={currentDrop.name}
-                      width={90}
-                      height={90}
-                      className="object-contain animate-spin-slow"
-                      onError={(e) => {
-                        console.error(`Failed to load image for ${currentDrop.name}: ${currentDrop.image_url}`);
-                        e.target.src = '/images/fallback.png';
-                      }}
-                    />
+                    {(() => {
+                      const [imageSrc, setImageSrc] = useState(null);
+                      const [isLoading, setIsLoading] = useState(true);
+
+                      useEffect(() => {
+                        const img = new Image();
+                        img.src = currentDrop.image_url;
+                        img.onload = () => {
+                          setImageSrc(currentDrop.image_url);
+                          setIsLoading(false);
+                        };
+                        img.onerror = () => {
+                          console.error(`Failed to load image for ${currentDrop.name}: ${currentDrop.image_url}`);
+                          setImageSrc('/images/fallback.png');
+                          setIsLoading(false);
+                        };
+                      }, [currentDrop.image_url]);
+
+                      return isLoading ? (
+                        <div className="w-24 h-24 bg-gray-700 rounded-full flex items-center justify-center">
+                          <span className="text-gray-400 text-xs">Loading...</span>
+                        </div>
+                      ) : (
+                        <Image
+                          src={imageSrc || '/images/fallback.png'}
+                          alt={currentDrop.name}
+                          width={90}
+                          height={90}
+                          className="object-contain animate-spin-slow"
+                        />
+                      );
+                    })()}
                   </div>
                   <h2 className="text-lg font-extrabold text-white text-center">You Won!</h2>
                   <p className={`text-md my-3 text-center font-semibold ${currentDrop.color}`}>
@@ -668,24 +717,44 @@ export default function CaseOpenerPro() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {drops.map((drop) => {
+                  const [imageSrc, setImageSrc] = useState(null);
+                  const [isLoading, setIsLoading] = useState(true);
+
+                  useEffect(() => {
+                    const img = new Image();
+                    img.src = drop.image_url;
+                    img.onload = () => {
+                      setImageSrc(drop.image_url);
+                      setIsLoading(false);
+                    };
+                    img.onerror = () => {
+                      console.error(`Failed to load image for ${drop.name}: ${drop.image_url}`);
+                      setImageSrc('/images/fallback.png');
+                      setIsLoading(false);
+                    };
+                  }, [drop.image_url]);
+
                   console.log(`Image URL for ${drop.name}:`, drop.image_url); // Debug log
+
                   return (
                     <motion.div
                       key={drop.id}
                       className={`bg-gray-800 p-3 rounded-lg border ${glowEffects[drop.glow]} flex items-center space-x-3`}
                       whileHover={{ scale: 1.02, boxShadow: "0 0 15px var(--theme-primary)" }}
                     >
-                      <Image
-                        src={drop.image_url || '/images/fallback.png'}
-                        alt={drop.name}
-                        width={60}
-                        height={60}
-                        className="object-contain rounded-md"
-                        onError={(e) => {
-                          console.error(`Failed to load image for ${drop.name}: ${drop.image_url}`);
-                          e.target.src = '/images/fallback.png';
-                        }}
-                      />
+                      {isLoading ? (
+                        <div className="w-[60px] h-[60px] bg-gray-700 rounded-md flex items-center justify-center">
+                          <span className="text-gray-400 text-xs">Loading...</span>
+                        </div>
+                      ) : (
+                        <Image
+                          src={imageSrc || '/images/fallback.png'}
+                          alt={drop.name}
+                          width={60}
+                          height={60}
+                          className="object-contain rounded-md"
+                        />
+                      )}
                       <div>
                         <p className={`text-md font-semibold ${drop.color}`}>{drop.name}</p>
                         <p className="text-gray-400 text-xs">Value: <span className="font-bold">{drop.value.toLocaleString()} Tokens</span></p>
