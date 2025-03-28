@@ -199,22 +199,29 @@ export default function CaseOpenerPro() {
     for (let i = 0; i < seed.length; i++) {
       seedValue = (seedValue * 31 + seed.charCodeAt(i)) & 0xFFFFFFFF;
     }
-    const rand = (Math.abs(seedValue) / 0xFFFFFFFF); // Normalize to 0-1
+    const rand = Math.abs(seedValue) / 0xFFFFFFFF; // Normalize to 0-1
     const totalChance = drops.reduce((sum, drop) => sum + drop.chance, 0);
-    if (totalChance <= 0) return drops[0];
-    const normalizedRand = rand * totalChance;
-    console.log('Random value:', rand, 'Total chance:', totalChance, 'Normalized rand:', normalizedRand); // Debug log
+    if (totalChance <= 0) {
+      console.warn('Total chance is 0, selecting first item as fallback');
+      return drops[0];
+    }
+    // Normalize chances to sum to 1
+    const normalizedChances = drops.map(drop => ({
+      ...drop,
+      normalizedChance: drop.chance / totalChance
+    }));
     let cumulative = 0;
-    for (const drop of drops) {
-      cumulative += drop.chance;
+    console.log('Random value:', rand); // Debug log
+    for (const drop of normalizedChances) {
+      cumulative += drop.normalizedChance;
       console.log(`Checking ${drop.name}: Cumulative = ${cumulative}`); // Debug log
-      if (normalizedRand <= cumulative) {
+      if (rand <= cumulative) {
         console.log(`Selected ${drop.name}`); // Debug log
         return drop;
       }
     }
-    console.log('Fallback to last item:', drops[drops.length - 1].name); // Debug log
-    return drops[drops.length - 1];
+    console.log('Fallback to last item:', normalizedChances[normalizedChances.length - 1].name); // Debug log
+    return normalizedChances[normalizedChances.length - 1];
   };
 
   const handleOpenCase = async () => {
@@ -556,7 +563,17 @@ export default function CaseOpenerPro() {
                       } flex items-center justify-center`}
                       whileHover={{ scale: 1.1 }}
                     >
-                      <Image src={drop.image_url} alt={drop.name} width={80} height={80} className="object-contain" />
+                      <Image
+                        src={drop.image_url || '/images/fallback.png'}
+                        alt={drop.name}
+                        width={80}
+                        height={80}
+                        className="object-contain"
+                        onError={(e) => {
+                          console.error(`Failed to load image for ${drop.name}: ${drop.image_url}`);
+                          e.target.src = '/images/fallback.png';
+                        }}
+                      />
                     </motion.div>
                   ))}
                 </motion.div>
@@ -577,7 +594,17 @@ export default function CaseOpenerPro() {
                   whileHover={{ scale: 1.03 }}
                 >
                   <div className="w-24 h-24 bg-gray-800 rounded-full mx-auto mb-3 flex items-center justify-center overflow-hidden">
-                    <Image src={currentDrop.image_url} alt={currentDrop.name} width={90} height={90} className="object-contain animate-spin-slow" />
+                    <Image
+                      src={currentDrop.image_url || '/images/fallback.png'}
+                      alt={currentDrop.name}
+                      width={90}
+                      height={90}
+                      className="object-contain animate-spin-slow"
+                      onError={(e) => {
+                        console.error(`Failed to load image for ${currentDrop.name}: ${currentDrop.image_url}`);
+                        e.target.src = '/images/fallback.png';
+                      }}
+                    />
                   </div>
                   <h2 className="text-lg font-extrabold text-white text-center">You Won!</h2>
                   <p className={`text-md my-3 text-center font-semibold ${currentDrop.color}`}>
@@ -640,21 +667,34 @@ export default function CaseOpenerPro() {
                 Possible Drops
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {drops.map((drop) => (
-                  <motion.div
-                    key={drop.id}
-                    className={`bg-gray-800 p-3 rounded-lg border ${glowEffects[drop.glow]} flex items-center space-x-3`}
-                    whileHover={{ scale: 1.02, boxShadow: "0 0 15px var(--theme-primary)" }}
-                  >
-                    <Image src={drop.image_url} alt={drop.name} width={60} height={60} className="object-contain rounded-md" />
-                    <div>
-                      <p className={`text-md font-semibold ${drop.color}`}>{drop.name}</p>
-                      <p className="text-gray-400 text-xs">Value: <span className="font-bold">{drop.value.toLocaleString()} Tokens</span></p>
-                      <p className="text-gray-400 text-xs">Chance: <span className="font-bold">{(drop.chance * 100).toFixed(1)}%</span></p>
-                      <p className="text-gray-400 text-xs">Rarity: <span className="font-bold">{drop.rarity}</span></p>
-                    </div>
-                  </motion.div>
-                ))}
+                {drops.map((drop) => {
+                  console.log(`Image URL for ${drop.name}:`, drop.image_url); // Debug log
+                  return (
+                    <motion.div
+                      key={drop.id}
+                      className={`bg-gray-800 p-3 rounded-lg border ${glowEffects[drop.glow]} flex items-center space-x-3`}
+                      whileHover={{ scale: 1.02, boxShadow: "0 0 15px var(--theme-primary)" }}
+                    >
+                      <Image
+                        src={drop.image_url || '/images/fallback.png'}
+                        alt={drop.name}
+                        width={60}
+                        height={60}
+                        className="object-contain rounded-md"
+                        onError={(e) => {
+                          console.error(`Failed to load image for ${drop.name}: ${drop.image_url}`);
+                          e.target.src = '/images/fallback.png';
+                        }}
+                      />
+                      <div>
+                        <p className={`text-md font-semibold ${drop.color}`}>{drop.name}</p>
+                        <p className="text-gray-400 text-xs">Value: <span className="font-bold">{drop.value.toLocaleString()} Tokens</span></p>
+                        <p className="text-gray-400 text-xs">Chance: <span className="font-bold">{(drop.chance * 100).toFixed(1)}%</span></p>
+                        <p className="text-gray-400 text-xs">Rarity: <span className="font-bold">{drop.rarity}</span></p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </div>
             </div>
           </div>
