@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, useAnimation, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
@@ -13,6 +13,40 @@ import { useAuth } from "../context/AuthContext";
 const supabaseUrl = 'https://hawjgysofnwidxanykrr.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhd2pneXNvZm53aWR4YW55a3JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMxNTQ2MzQsImV4cCI6MjA1ODczMDYzNH0.o9Sb14acr7EJNdt7BLgw1566A5pEg5ZEfCiDuDqiAhI';
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Component to handle image preloading
+const DropImage = ({ src, alt, width, height, className }) => {
+  const [imageSrc, setImageSrc] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = src;
+    img.onload = () => {
+      setImageSrc(src);
+      setIsLoading(false);
+    };
+    img.onerror = () => {
+      console.error(`Failed to load image for ${alt}: ${src}`);
+      setImageSrc('/images/fallback.png');
+      setIsLoading(false);
+    };
+  }, [src, alt]);
+
+  return isLoading ? (
+    <div className={`w-[${width}px] h-[${height}px] bg-gray-700 rounded-md flex items-center justify-center ${className}`}>
+      <span className="text-gray-400 text-xs">Loading...</span>
+    </div>
+  ) : (
+    <Image
+      src={imageSrc || '/images/fallback.png'}
+      alt={alt}
+      width={width}
+      height={height}
+      className={className}
+    />
+  );
+};
 
 export default function CaseOpenerPro() {
   const [tokens, setTokens] = useState(0);
@@ -38,7 +72,7 @@ export default function CaseOpenerPro() {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(true);
   const [drops, setDrops] = useState([]);
-  const [rollCounter, setRollCounter] = useState(0); // Added roll counter
+  const [rollCounter, setRollCounter] = useState(0);
   const controls = useAnimation();
   const audioRef = useRef(null);
 
@@ -100,7 +134,7 @@ export default function CaseOpenerPro() {
           .from('case_items')
           .select('*');
         if (itemsError) throw itemsError;
-        console.log('Fetched case items:', itemsData); // Debug log
+        console.log('Fetched case items:', itemsData);
         setDrops(itemsData || []);
       } catch (error) {
         console.error('Error fetching data:', error.message);
@@ -114,7 +148,7 @@ export default function CaseOpenerPro() {
   }, [authUser]);
 
   // Update Supabase with current stats (debounced)
-  const updateStatsInDB = async () => {
+  const updateStatsInDB = useCallback(async () => {
     if (!user) return;
     const stats = {
       tokens,
@@ -132,14 +166,14 @@ export default function CaseOpenerPro() {
     } catch (error) {
       console.error('Error updating stats:', error.message);
     }
-  };
+  }, [user, tokens, casesOpened, bestDrop, winRate, dropHistory, totalValueWon]);
 
   useEffect(() => {
     if (user) {
       const debounce = setTimeout(() => updateStatsInDB(), 500);
       return () => clearTimeout(debounce);
     }
-  }, [tokens, casesOpened, bestDrop, winRate, dropHistory, totalValueWon, user]);
+  }, [user, tokens, casesOpened, bestDrop, winRate, dropHistory, totalValueWon, updateStatsInDB]);
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -195,48 +229,45 @@ export default function CaseOpenerPro() {
 
   const getRandomDrop = (seed) => {
     if (drops.length === 0) return null;
-    // Split the seed into components
     const [clientSeed, serverSeed, counter] = seed.split(':');
-    // Use a more robust hash (FNV-1a)
-    let hash = 2166136261; // FNV offset basis
+    let hash = 2166136261;
     const fnvPrime = 16777619;
     const seedString = clientSeed + serverSeed + counter;
     for (let i = 0; i < seedString.length; i++) {
       hash ^= seedString.charCodeAt(i);
       hash = (hash * fnvPrime) & 0xFFFFFFFF;
     }
-    const rand = (hash / 0xFFFFFFFF); // Normalize to 0-1
+    const rand = (hash / 0xFFFFFFFF);
     const totalChance = drops.reduce((sum, drop) => sum + drop.chance, 0);
     if (totalChance <= 0) {
       console.warn('Total chance is 0, selecting first item as fallback');
       return drops[0];
     }
-    // Normalize chances to sum to 1
     const normalizedChances = drops.map(drop => ({
       ...drop,
       normalizedChance: drop.chance / totalChance
     }));
     let cumulative = 0;
-    console.log('Random value:', rand); // Debug log
+    console.log('Random value:', rand);
     for (const drop of normalizedChances) {
       cumulative += drop.normalizedChance;
-      console.log(`Checking ${drop.name}: Cumulative = ${cumulative}`); // Debug log
+      console.log(`Checking ${drop.name}: Cumulative = ${cumulative}`);
       if (rand <= cumulative) {
-        console.log(`Selected ${drop.name}`); // Debug log
+        console.log(`Selected ${drop.name}`);
         return drop;
       }
     }
-    console.log('Fallback to last item:', normalizedChances[normalizedChances.length - 1].name); // Debug log
+    console.log('Fallback to last item:', normalizedChances[normalizedChances.length - 1].name);
     return normalizedChances[normalizedChances.length - 1];
   };
 
-  const handleOpenCase = async () => {
+  const handleOpenCase = useCallback(async () => {
     if (isOpening || tokens < caseCost * multiplier || drops.length === 0) {
       toast.error(drops.length === 0 ? "No items available to unbox!" : `Need ${caseCost * multiplier} tokens to open!`);
       return;
     }
 
-    console.log('Available drops for crate:', drops.map(d => ({ name: d.name, chance: d.chance }))); // Debug log
+    console.log('Available drops for crate:', drops.map(d => ({ name: d.name, chance: d.chance })));
 
     if (currentDrop) {
       const saleValue = currentDrop.value * multiplier;
@@ -256,7 +287,7 @@ export default function CaseOpenerPro() {
     const fairHash = generateProvablyFairHash();
     setProvablyFairHash(fairHash);
     const finalDrop = getRandomDrop(fairHash);
-    setRollCounter((prev) => prev + 1); // Increment counter after each roll
+    setRollCounter((prev) => prev + 1);
 
     if (!finalDrop) {
       setIsOpening(false);
@@ -299,7 +330,32 @@ export default function CaseOpenerPro() {
       soundEffects.winCommon.play();
     }
     toast.success(`Unboxed ${finalDrop.name} (${finalDrop.value} Tokens)!`);
-  };
+  }, [
+    isOpening,
+    tokens,
+    caseCost,
+    multiplier,
+    drops,
+    currentDrop,
+    setTokens,
+    setTotalValueWon,
+    setCurrentDrop,
+    setCasesOpened,
+    setIsOpening,
+    setScrollingDrops,
+    controls,
+    setProvablyFairHash,
+    setRollCounter,
+    getRandomDrop,
+    setDropHistory,
+    dropHistory,
+    setBestDrop,
+    setWinRate,
+    casesOpened,
+    totalValueWon,
+    soundEffects,
+    toast
+  ]);
 
   useEffect(() => {
     let interval;
@@ -307,7 +363,7 @@ export default function CaseOpenerPro() {
       interval = setInterval(handleOpenCase, 7000);
     }
     return () => clearInterval(interval);
-  }, [autoOpen, tokens, caseCost, multiplier, drops]);
+  }, [autoOpen, tokens, caseCost, multiplier, drops, handleOpenCase]);
 
   const handleSaveDrop = async () => {
     if (currentDrop && user) {
