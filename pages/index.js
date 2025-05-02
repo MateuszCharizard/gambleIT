@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Head from "next/head";
+import Image from "next/image"; // Import next/image
 
 // Utility Functions
 const getCollegeEndTime = (dayOfWeek) => {
@@ -186,7 +187,7 @@ const CountdownTimer = () => {
     <div className="glass-card p-6 rounded-xl w-full max-w-md animate-fade-in text-white select-none">
       <div className="flex items-center space-x-2 mb-4 text-primary">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-        <h2 className="text-2xl font-semibold">College Schedule</h2>
+        <h2 className="text-2xl font-semibold ">College Schedule</h2>
       </div>
       <p className="text-lg mb-4">
         {currentTeacher ? `Current Instructor: ${currentTeacher}` : "No college"}
@@ -213,8 +214,8 @@ const CountdownTimer = () => {
           </div>
         </div>
       ) : null}
-      <div className="mt-6 text-sm text-muted-foreground">
-        <p className="font-semibold mb-2">Weekly Schedule:</p>
+      <div className="mt-6 text-sm text-muted-foreground ">
+        <p className="font-semibold mb-2 text-white ">Weekly Schedule:</p>
         <ul className="space-y-2">
           {daysOfWeek.map((day, index) => {
             const schedule = getCollegeSchedule(index);
@@ -289,7 +290,7 @@ const WeatherDisplay = () => {
   const getWeatherIconUrl = (icon) => `https://openweathermap.org/img/wn/${icon}@2x.png`;
 
   return (
-    <div className="glass-card p-6 rounded-xl w-full max-w-md animate-fade-in text-white select-none ">
+    <div className="glass-card p-6 rounded-xl w-full max-w-md animate-fade-in text-white select-none">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold mb-1">Weston-super-Mare</h2>
@@ -297,9 +298,11 @@ const WeatherDisplay = () => {
         </div>
         {weather && (
           <div className="flex items-center">
-            <img
+            <Image
               src={getWeatherIconUrl(weather.icon)}
               alt={weather.description}
+              width={64}
+              height={64}
               className="w-16 h-16"
             />
           </div>
@@ -355,7 +358,6 @@ export default function Index() {
       <Head>
         <title>Weston-super-Mare College Dashboard</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <script src="https://cdn.tailwindcss.com"></script>
         <style>{`
           :root {
             --background: 210 40% 98%;
@@ -423,6 +425,19 @@ export default function Index() {
             background: linear-gradient(135deg, #6096B4 0%, #93BFCF 100%);
           }
 
+
+
+          /* Responsive classes */
+          @media (min-width: 768px) {
+            .md\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .md\\:justify-end { justify-content: flex-end; }
+            .md\\:justify-start { justify-content: flex-start; }
+            .md\\:text-2xl { font-size: 1.5rem; line-height: 2rem; }
+            .md\\:text-6xl { font-size: 3.75rem; line-height: 1; }
+            .md\\:py-16 { padding-top: 4rem; padding-bottom: 4rem; }
+          }
+
+          /* Animations */
           @keyframes delayedFadeIn {
             0% { opacity: 0; transform: translateY(10px); }
             100% { opacity: 1; transform: translateY(0); }
