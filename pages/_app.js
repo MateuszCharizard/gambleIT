@@ -1,14 +1,8 @@
-import { AuthProvider } from '../context/AuthContext';
-import '../styles/globals.css'; // Assuming you have global styles
-import { Toaster } from 'react-hot-toast';
+// pages/_app.js
+import '@/styles/globals.css';
 
 function MyApp({ Component, pageProps }) {
-  return (
-    <AuthProvider>
-      <Component {...pageProps} />
-      <Toaster />
-    </AuthProvider>
-  );
+  return <Component {...pageProps} />;
 }
 
 export default MyApp;
