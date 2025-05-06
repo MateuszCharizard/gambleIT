@@ -44,7 +44,7 @@ const getCollegeSchedule = (dayOfWeek) => {
         { instructor: "Ben Hobbs", endTime: "14:45" }
       ]
     };
-    default: return null; // Wednesday, Saturday, Sunday: no college
+    default: return null; // , Saturday, Sunday: no college
   }
 };
 
@@ -244,19 +244,28 @@ const WeatherDisplay = () => {
     const fetchWeather = async () => {
       try {
         setLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const mockWeather = {
-          temp: 16.2,
-          description: "Partly cloudy",
-          icon: "02d",
-          feelsLike: 15.8,
-          humidity: 73,
-          windSpeed: 4.6
+        const apiKey = 'beae3be250bcfec8d724082b77c62ff4';
+        const city = 'Weston-super-Mare,UK';
+        const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error('Failed to fetch weather data');
+        }
+        const data = await response.json();
+
+        const weatherData = {
+          temp: data.main.temp,
+          description: data.weather[0].description,
+          icon: data.weather[0].icon,
+          feelsLike: data.main.feels_like,
+          humidity: data.main.humidity,
+          windSpeed: data.wind.speed
         };
-        setWeather(mockWeather);
+        setWeather(weatherData);
       } catch (err) {
-        setError("Failed to fetch weather data");
-        console.error("Weather fetch error:", err);
+        setError(err.message || 'Failed to fetch weather data');
+        console.error('Weather fetch error:', err);
       } finally {
         setLoading(false);
       }
