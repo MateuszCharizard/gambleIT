@@ -184,7 +184,7 @@ const CountdownTimer = () => {
   const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
   return (
-    <div className="glass-card p-6 rounded-xl w-full max-w-md animate-fade-in text-white select-none">
+    <div className="glass-card p-6 rounded-xl w-full max-w-lg animate-fade-in text-white select-none">
       <div className="flex items-center space-x-2 mb-4 text-primary">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
         <h2 className="text-2xl font-semibold ">College Schedule</h2>
@@ -275,7 +275,7 @@ const WeatherDisplay = () => {
 
   if (loading) {
     return (
-      <div className="glass-card p-6 rounded-xl w-full max-w-md flex flex-col items-center justify-center min-h-[200px] text-white select-none">
+      <div className="glass-card p-6 rounded-xl w-full max-w-lg flex flex-col items-center justify-center min-h-[200px] text-white select-none">
         <div className="animate-pulse-slow">
           <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary mb-4">
             <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"></path>
@@ -290,7 +290,7 @@ const WeatherDisplay = () => {
 
   if (error) {
     return (
-      <div className="glass-card p-6 rounded-xl w-full max-w-md">
+      <div className="glass-card p-6 rounded-xl w-full max-w-lg">
         <p className="text-center text-destructive">{error}</p>
       </div>
     );
@@ -299,7 +299,7 @@ const WeatherDisplay = () => {
   const getWeatherIconUrl = (icon) => `https://openweathermap.org/img/wn/${icon}@2x.png`;
 
   return (
-    <div className="glass-card p-6 rounded-xl w-full max-w-md animate-fade-in text-white select-none">
+    <div className="glass-card p-6 rounded-xl w-full max-w-lg animate-fade-in text-white select-none">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold mb-1">Weston-super-Mare</h2>
@@ -340,6 +340,65 @@ const WeatherDisplay = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// NewsBox Component
+const NewsBox = () => {
+  const news = {
+    title: "Ben Hobbs Spotted at Pure Gym Functional Zone!",
+    date: "Friday, 8 May 2025",
+    description: "Our very own instructor Ben Hobbs was seen crushing it at Pure Gym's functional zone today, inspiring students both in and out of the classroom!"
+  };
+
+  return (
+    <div className="glass-card p-6 rounded-xl w-full max-w-6xl animate-fade-in text-white select-none mt-8">
+      <div className="flex items-center space-x-2 mb-4 text-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 4h16v2H4z"></path>
+          <path d="M4 10h16v2H4z"></path>
+          <path d="M4 16h10v2H4z"></path>
+        </svg>
+        <h2 className="text-2xl font-semibold">News of the Day</h2>
+      </div>
+      <h3 className="text-xl font-bold mb-2">{news.title}</h3>
+      <p className="text-sm text-muted-foreground mb-2">{news.date}</p>
+      <p className="text-base">{news.description}</p>
+    </div>
+  );
+};
+
+// ESPAnnouncement Component
+const ESPAnnouncement = () => {
+  const espTasks = [
+    { task: "Task 1: Planning", date: "Wednesday, 14 May 2025" },
+    { task: "Task 2: Errors in Code", date: "Friday, 16 May 2025" },
+    { task: "Task 3: Design", date: "Monday, 19 May 2025" },
+    { task: "Task 4a: Development", date: "Wednesday, 21 May 2025" },
+    { task: "Task 4b: Evaluation", date: "Friday, 23 May 2025" }
+  ];
+
+  return (
+    <div className="glass-card p-6 rounded-xl w-full max-w-lg animate-fade-in text-white select-none">
+      <div className="flex items-center space-x-2 mb-4 text-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+          <path d="M3 6h18"></path>
+          <path d="M16 10a4 4 0 0 1-8 0"></path>
+        </svg>
+        <h2 className="text-2xl font-semibold">ESP Announcement</h2>
+      </div>
+      <h3 className="text-xl font-bold mb-2">ESP Starts Next Week!</h3>
+      <p className="text-base mb-4">Get ready for the Extended Software Project with the following schedule:</p>
+      <ul className="space-y-2">
+        {espTasks.map((item, index) => (
+          <li key={index} className="flex justify-between items-start">
+            <span className="font-medium w-2/3">{item.task}</span>
+            <span className="text-right w-1/3 text-muted-foreground">{item.date}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };
@@ -434,13 +493,10 @@ export default function Index() {
             background: linear-gradient(135deg, #6096B4 0%, #93BFCF 100%);
           }
 
-
-
           /* Responsive classes */
           @media (min-width: 768px) {
-            .md\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .md\\:justify-end { justify-content: flex-end; }
-            .md\\:justify-start { justify-content: flex-start; }
+            .md\\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .md\\:justify-center { justify-content: center; }
             .md\\:text-2xl { font-size: 1.5rem; line-height: 2rem; }
             .md\\:text-6xl { font-size: 3.75rem; line-height: 1; }
             .md\\:py-16 { padding-top: 4rem; padding-bottom: 4rem; }
@@ -491,15 +547,19 @@ export default function Index() {
               {currentDate} • {currentTime || 'Loading...'}
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="flex justify-center md:justify-end">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="flex justify-center md:justify-center">
               <WeatherDisplay />
             </div>
-            <div className="flex justify-center md:justify-start">
+            <div className="flex justify-center md:justify-center">
               <CountdownTimer />
             </div>
+            <div className="flex justify-center md:justify-center">
+              <ESPAnnouncement />
+            </div>
           </div>
-          <div className="mt-auto pt-12 text-center">
+          <NewsBox />
+          <div className="mt-12 text-center">
             <p className="text-white/70 text-sm">
               Designed for Weston College DPDD Students
             </p>
