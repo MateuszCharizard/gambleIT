@@ -193,7 +193,7 @@ const CountdownTimer = ({ setExpandedBox, isExpanded }) => {
         {currentTeacher ? `Current Instructor: ${currentTeacher}` : "No college"}
       </p>
       {shouldShowCountdown ? (
-        <div className="grid grid-cols-3 gap-4 text-center mb-6">
+        <div className="grid grid-cols-3 border-2 rounded-lg backdrop-blur gap-4 text-center mb-6">
           <div className="bg-primary/10 p-3 rounded-lg delayed-fade-in delay-100">
             <span className="text-3xl font-bold text-primary">
               {formatTimeUnit(timeRemaining.hours)}
@@ -214,15 +214,15 @@ const CountdownTimer = ({ setExpandedBox, isExpanded }) => {
           </div>
         </div>
       ) : null}
-      <div className="mt-6 text-sm text-muted-foreground">
-        <p className="font-semibold mb-2 text-white">Weekly Schedule:</p>
+      <div className="mt-6 text-sm text-muted-foreground border-2 rounded-lg backdrop-blur p-2">
+        <p className="font-bold text-lg mb-2 text-white">Weekly Schedule:</p>
         <ul className="space-y-2">
           {daysOfWeek.map((day, index) => {
             const schedule = getCollegeSchedule(index);
             return (
               <li key={day} className="flex justify-between items-start">
-                <span className="font-medium w-1/3">{day}:</span>
-                <span className="text-right w-2/3">
+                <span className="font-bold w-1/3">{day}:</span>
+                <span className="text-right w-2/3 font-semibold">
                   {schedule ? schedule.times.join(' / ') : "No college"}
                 </span>
               </li>
@@ -234,7 +234,7 @@ const CountdownTimer = ({ setExpandedBox, isExpanded }) => {
   );
 
   return isExpanded ? (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30 backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
+    <div className="fixed inset-0 flex items-center justify-center z-50  backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
       <div className="glass-card p-8 rounded-xl w-full max-w-3xl text-white select-none relative transition-all duration-300" onClick={(e) => e.stopPropagation()}>
         <button className="absolute top-4 right-4 text-white hover:text-primary transition-colors" onClick={() => setExpandedBox(null)}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -312,7 +312,7 @@ const WeatherDisplay = ({ setWeatherCondition, setExpandedBox, isExpanded }) => 
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold mb-1">Weston-super-Mare</h2>
-          <p className="text-muted-foreground">Current weather</p>
+          <p className="text-muted-foreground font-semibold">Current weather</p>
         </div>
         {weather && (
           <div className="flex items-center">
@@ -327,8 +327,8 @@ const WeatherDisplay = ({ setWeatherCondition, setExpandedBox, isExpanded }) => 
         )}
       </div>
       {weather && (
-        <div className="mt-4">
-          <div className="flex items-end mb-6">
+        <div className="mt-4 border-2 rounded-lg backdrop-blur p-2">
+          <div className="flex items-end mb-6 ">
             <span className="text-5xl font-bold">{Math.round(weather.temp)}</span>
             <span className="text-2xl">°C</span>
             <span className="ml-3 text-muted-foreground capitalize">{weather.description}</span>
@@ -353,7 +353,7 @@ const WeatherDisplay = ({ setWeatherCondition, setExpandedBox, isExpanded }) => 
   );
 
   return isExpanded ? (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30 backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
+    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
       <div className="glass-card p-8 rounded-xl w-full max-w-3xl text-white select-none relative transition-all duration-300" onClick={(e) => e.stopPropagation()}>
         <button className="absolute top-4 right-4 text-white hover:text-primary transition-colors" onClick={() => setExpandedBox(null)}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -380,7 +380,7 @@ const NewsBox = () => {
   };
 
   return (
-    <div className="glass-card p-6 rounded-xl w-full max-w-6xl animate-fade-in text-white select-none mt-8">
+    <div className="glass-card p-6 rounded-xl w-full max-w-6xl animate-fade-in text-white select-none mt-8 ">
       <div className="flex items-center space-x-2 mb-4 text-primary">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 4h16v2H4z"></path>
@@ -391,7 +391,7 @@ const NewsBox = () => {
       </div>
       <h3 className="text-xl font-bold mb-2">{news.title}</h3>
       <p className="text-sm text-muted-foreground mb-2">{news.date}</p>
-      <p className="text-base">{news.description}</p>
+      <p className="text-base border-2 rounded-lg backdrop-blur p-2">{news.description}</p>
     </div>
   );
 };
@@ -417,12 +417,12 @@ const ESPAnnouncement = ({ setExpandedBox, isExpanded }) => {
         <h2 className="text-2xl font-semibold">ESP Announcement</h2>
       </div>
       <h3 className="text-xl font-bold mb-2">ESP Starts Next Week!</h3>
-      <p className="text-base mb-4">Get ready for the Extended Software Project with the following schedule:</p>
-      <ul className="space-y-2">
+      <p className="text-base font-semi mb-4">Get ready for the Extended Software Project with the following schedule:</p>
+      <ul className="space-y-2 border-2 rounded-lg backdrop-blur p-2">
         {espTasks.map((item, index) => (
           <li key={index} className="flex justify-between items-start">
-            <span className="font-medium w-2/3">{item.task}</span>
-            <span className="text-right w-1/3 text-muted-foreground">{item.date}</span>
+            <span className="font-medium font-semibold w-2/3">{item.task}</span>
+            <span className="text-right font-semibold w-3/3 text-muted-foreground">{item.date}</span>
           </li>
         ))}
       </ul>
@@ -430,7 +430,7 @@ const ESPAnnouncement = ({ setExpandedBox, isExpanded }) => {
   );
 
   return isExpanded ? (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30 backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
+    <div className="fixed inset-0 flex items-center justify-center z-50  backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
       <div className="glass-card p-8 rounded-xl w-full max-w-3xl text-white select-none relative transition-all duration-300" onClick={(e) => e.stopPropagation()}>
         <button className="absolute top-4 right-4 text-white hover:text-primary transition-colors" onClick={() => setExpandedBox(null)}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -548,10 +548,10 @@ export default function Index() {
           }
 
           .glass-card {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(0, 0, 0, 0.07);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(255, 255, 255, 0.2);
           }
 
           .bg-gradient {
@@ -566,8 +566,9 @@ export default function Index() {
             height: 100%;
             object-fit: cover;
             z-index: -1;
-            opacity: 0.6;
+            opacity: 0.9;
             background-color: #000;
+            filter: blur(10px); /* Add this line for blur */
           }
 
           .content-container {
