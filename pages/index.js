@@ -234,7 +234,7 @@ const CountdownTimer = ({ setExpandedBox, isExpanded }) => {
   );
 
   return isExpanded ? (
-    <div className="fixed inset-0 flex items-center justify-center z-50  backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
+    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
       <div className="glass-card p-8 rounded-xl w-full max-w-3xl text-white select-none relative transition-all duration-300" onClick={(e) => e.stopPropagation()}>
         <button className="absolute top-4 right-4 text-white hover:text-primary transition-colors" onClick={() => setExpandedBox(null)}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -254,7 +254,8 @@ const CountdownTimer = ({ setExpandedBox, isExpanded }) => {
 
 // WeatherDisplay Component
 const WeatherDisplay = ({ setWeatherCondition, setExpandedBox, isExpanded }) => {
-  const [weather, setWeather] = useState(null);
+  const [currentWeather, setCurrentWeather] = useState(null);
+  const [hourlyForecast, setHourlyForecast] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -264,25 +265,92 @@ const WeatherDisplay = ({ setWeatherCondition, setExpandedBox, isExpanded }) => 
         setLoading(true);
         const apiKey = 'beae3be250bcfec8d724082b77c62ff4';
         const city = 'Weston-super-Mare,UK';
-        const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
-
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error('Failed to fetch weather data');
+        
+        // Fetch current weather
+        const currentUrl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+        const currentResponse = await fetch(currentUrl);
+        if (!currentResponse.ok) {
+          throw new Error('Failed to fetch current weather data');
         }
-        const data = await response.json();
+        const currentData = await currentResponse.json();
 
-        const weatherData = {
-          temp: data.main.temp,
-          description: data.weather[0].description,
-          icon: data.weather[0].icon,
-          feelsLike: data.main.feels_like,
-          humidity: data.main.humidity,
-          windSpeed: data.wind.speed,
-          main: data.weather[0].main.toLowerCase() // e.g., rain, clear, clouds
+        const currentWeatherData = {
+          temp: currentData.main.temp,
+          description: currentData.weather[0].description,
+          icon: currentData.weather[0].icon,
+          feelsLike: currentData.main.feels_like,
+          humidity: currentData.main.humidity,
+          windSpeed: currentData.wind.speed,
+          main: currentData.weather[0].main.toLowerCase()
         };
-        setWeather(weatherData);
-        setWeatherCondition(weatherData.main);
+        setCurrentWeather(currentWeatherData);
+        setWeatherCondition(currentWeatherData.main);
+
+        // Fetch 3-hourly forecast
+        const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`;
+        const forecastResponse = await fetch(forecastUrl);
+        if (!forecastResponse.ok) {
+          throw new Error('Failed to fetch forecast data');
+        }
+        const forecastData = await forecastResponse.json();
+
+        // Filter for the next 24 hours
+        const now = new Date();
+        const next24Hours = now.getTime() / 1000 + 24 * 3600; // Unix timestamp for 24 hours from now
+        const threeHourly = forecastData.list
+          .filter(item => item.dt <= next24Hours)
+          .map(item => ({
+            dt: item.dt,
+            time: new Date(item.dt * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            temp: item.main.temp,
+            description: item.weather[0].description,
+            icon: item.weather[0].icon,
+            feelsLike: item.main.feels_like,
+            humidity: item.main.humidity,
+            windSpeed: item.wind.speed
+          }));
+
+        // Interpolate to get hourly data
+        const hourly = [];
+        for (let i = 0; i < threeHourly.length - 1; i++) {
+          const current = threeHourly[i];
+          const next = threeHourly[i + 1];
+          const currentTime = new Date(current.dt * 1000);
+          const nextTime = new Date(next.dt * 1000);
+          const timeDiffHours = (next.dt - current.dt) / 3600; // Should be 3 hours
+
+          // Add the current 3-hourly data point
+          hourly.push(current);
+
+          // Interpolate for the next two hours
+          for (let j = 1; j < timeDiffHours; j++) {
+            const fraction = j / timeDiffHours;
+            const interpolatedTime = new Date(currentTime.getTime() + j * 3600 * 1000);
+            const interpolated = {
+              time: interpolatedTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
+              temp: current.temp + (next.temp - current.temp) * fraction,
+              feelsLike: current.feelsLike + (next.feelsLike - current.feelsLike) * fraction,
+              humidity: Math.round(current.humidity + (next.humidity - current.humidity) * fraction),
+              windSpeed: current.windSpeed + (next.windSpeed - current.windSpeed) * fraction,
+              description: current.description, // Use current description
+              icon: current.icon // Use current icon
+            };
+            hourly.push(interpolated);
+          }
+        }
+        // Add the last 3-hourly data point
+        if (threeHourly.length > 0) {
+          hourly.push(threeHourly[threeHourly.length - 1]);
+        }
+
+        // Sort by time to ensure correct order
+        hourly.sort((a, b) => {
+          const [aHours, aMinutes] = a.time.split(':').map(Number);
+          const [bHours, bMinutes] = b.time.split(':').map(Number);
+          return (aHours * 60 + aMinutes) - (bHours * 60 + bMinutes);
+        });
+
+        setHourlyForecast(hourly);
       } catch (err) {
         setError(err.message || 'Failed to fetch weather data');
         console.error('Weather fetch error:', err);
@@ -314,11 +382,11 @@ const WeatherDisplay = ({ setWeatherCondition, setExpandedBox, isExpanded }) => 
           <h2 className="text-2xl font-semibold mb-1">Weston-super-Mare</h2>
           <p className="text-muted-foreground font-semibold">Current weather</p>
         </div>
-        {weather && (
+        {currentWeather && (
           <div className="flex items-center">
             <Image
-              src={getWeatherIconUrl(weather.icon)}
-              alt={weather.description}
+              src={getWeatherIconUrl(currentWeather.icon)}
+              alt={currentWeather.description}
               width={64}
               height={64}
               className="w-16 h-16"
@@ -326,27 +394,74 @@ const WeatherDisplay = ({ setWeatherCondition, setExpandedBox, isExpanded }) => 
           </div>
         )}
       </div>
-      {weather && (
+      {currentWeather && (
         <div className="mt-4 border-2 rounded-lg backdrop-blur p-2">
-          <div className="flex items-end mb-6 ">
-            <span className="text-5xl font-bold">{Math.round(weather.temp)}</span>
+          <div className="flex items-end mb-6">
+            <span className="text-5xl font-bold">{Math.round(currentWeather.temp)}</span>
             <span className="text-2xl">°C</span>
-            <span className="ml-3 text-muted-foreground capitalize">{weather.description}</span>
+            <span className="ml-3 text-muted-foreground capitalize">{currentWeather.description}</span>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="bg-primary/10 p-2 rounded-lg">
               <p className="text-sm text-muted-foreground">Feels Like</p>
-              <p className="font-semibold">{Math.round(weather.feelsLike)}°C</p>
+              <p className="font-semibold">{Math.round(currentWeather.feelsLike)}°C</p>
             </div>
             <div className="bg-primary/10 p-2 rounded-lg">
               <p className="text-sm text-muted-foreground">Humidity</p>
-              <p className="font-semibold">{weather.humidity}%</p>
+              <p className="font-semibold">{currentWeather.humidity}%</p>
             </div>
             <div className="bg-primary/10 p-2 rounded-lg">
               <p className="text-sm text-muted-foreground">Wind</p>
-              <p className="font-semibold">{weather.windSpeed} m/s</p>
+              <p className="font-semibold">{currentWeather.windSpeed} m/s</p>
             </div>
           </div>
+        </div>
+      )}
+      {hourlyForecast.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold mb-2 text-white">Today’s Forecast</h3>
+          {isExpanded ? (
+            <div className="grid grid-cols-2 gap-4 delayed-fade-in delay-200">
+              {hourlyForecast.map((hour, index) => (
+                <div key={index} className="bg-primary/10 p-3 rounded-lg">
+                  <p className="font-semibold">{hour.time}</p>
+                  <div className="flex items-center space-x-2">
+                    <Image
+                      src={getWeatherIconUrl(hour.icon)}
+                      alt={hour.description}
+                      width={32}
+                      height={32}
+                      className="w-8 h-8"
+                    />
+                    <span className="capitalize">{hour.description}</span>
+                  </div>
+                  <p>Temp: {Math.round(hour.temp)}°C</p>
+                  <p>Feels Like: {Math.round(hour.feelsLike)}°C</p>
+                  <p>Humidity: {hour.humidity}%</p>
+                  <p>Wind: {hour.windSpeed.toFixed(1)} m/s</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex overflow-x-auto space-x-4 pb-4 scroll-smooth">
+              {hourlyForecast.map((hour, index) => (
+                <div key={index} className="bg-primary/10 p-3 rounded-lg min-w-[150px] flex-shrink-0">
+                  <p className="font-semibold">{hour.time}</p>
+                  <div className="flex items-center space-x-2">
+                    <Image
+                      src={getWeatherIconUrl(hour.icon)}
+                      alt={hour.description}
+                      width={32}
+                      height={32}
+                      className="w-8 h-8"
+                    />
+                    <span className="capitalize">{hour.description}</span>
+                  </div>
+                  <p>{Math.round(hour.temp)}°C</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </>
@@ -380,7 +495,7 @@ const NewsBox = () => {
   };
 
   return (
-    <div className="glass-card p-6 rounded-xl w-full max-w-6xl animate-fade-in text-white select-none mt-8 ">
+    <div className="glass-card p-6 rounded-xl w-full max-w-6xl animate-fade-in text-white select-none mt-8">
       <div className="flex items-center space-x-2 mb-4 text-primary">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 4h16v2H4z"></path>
@@ -430,7 +545,7 @@ const ESPAnnouncement = ({ setExpandedBox, isExpanded }) => {
   );
 
   return isExpanded ? (
-    <div className="fixed inset-0 flex items-center justify-center z-50  backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
+    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
       <div className="glass-card p-8 rounded-xl w-full max-w-3xl text-white select-none relative transition-all duration-300" onClick={(e) => e.stopPropagation()}>
         <button className="absolute top-4 right-4 text-white hover:text-primary transition-colors" onClick={() => setExpandedBox(null)}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -568,7 +683,7 @@ export default function Index() {
             z-index: -1;
             opacity: 0.9;
             background-color: #000;
-            filter: blur(10px); /* Add this line for blur */
+            filter: blur(10px);
           }
 
           .content-container {
@@ -638,6 +753,20 @@ export default function Index() {
           /* Ensure expanded box doesn't trigger parent click */
           .glass-card.relative {
             pointer-events: auto;
+          }
+
+          /* Scrollbar styling for hourly forecast */
+          .overflow-x-auto::-webkit-scrollbar {
+            height: 8px;
+          }
+
+          .overflow-x-auto::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+          }
+
+          .overflow-x-auto::-webkit-scrollbar-track {
+            background: transparent;
           }
         `}</style>
       </Head>
