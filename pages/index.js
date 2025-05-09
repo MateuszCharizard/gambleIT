@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Head from "next/head";
-import Image from "next/image"; // Import next/image
+import Image from "next/image";
 
 // Utility Functions
 const getCollegeEndTime = (dayOfWeek) => {
@@ -44,7 +44,7 @@ const getCollegeSchedule = (dayOfWeek) => {
         { instructor: "Ben Hobbs", endTime: "14:45" }
       ]
     };
-    default: return null; // , Saturday, Sunday: no college
+    default: return null; // Saturday, Sunday: no college
   }
 };
 
@@ -187,7 +187,7 @@ const CountdownTimer = () => {
     <div className="glass-card p-6 rounded-xl w-full max-w-lg animate-fade-in text-white select-none">
       <div className="flex items-center space-x-2 mb-4 text-primary">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-        <h2 className="text-2xl font-semibold ">College Schedule</h2>
+        <h2 className="text-2xl font-semibold">College Schedule</h2>
       </div>
       <p className="text-lg mb-4">
         {currentTeacher ? `Current Instructor: ${currentTeacher}` : "No college"}
@@ -214,8 +214,8 @@ const CountdownTimer = () => {
           </div>
         </div>
       ) : null}
-      <div className="mt-6 text-sm text-muted-foreground ">
-        <p className="font-semibold mb-2 text-white ">Weekly Schedule:</p>
+      <div className="mt-6 text-sm text-muted-foreground">
+        <p className="font-semibold mb-2 text-white">Weekly Schedule:</p>
         <ul className="space-y-2">
           {daysOfWeek.map((day, index) => {
             const schedule = getCollegeSchedule(index);
@@ -235,13 +235,13 @@ const CountdownTimer = () => {
 };
 
 // WeatherDisplay Component
-const WeatherDisplay = () => {
+const WeatherDisplay = ({ setWeatherCondition }) => {
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchWeather = async () => {
+    (async () => {
       try {
         setLoading(true);
         const apiKey = 'beae3be250bcfec8d724082b77c62ff4';
@@ -260,18 +260,19 @@ const WeatherDisplay = () => {
           icon: data.weather[0].icon,
           feelsLike: data.main.feels_like,
           humidity: data.main.humidity,
-          windSpeed: data.wind.speed
+          windSpeed: data.wind.speed,
+          main: data.weather[0].main.toLowerCase() // e.g., rain, clear, clouds
         };
         setWeather(weatherData);
+        setWeatherCondition(weatherData.main); // Pass the main weather condition to parent
       } catch (err) {
         setError(err.message || 'Failed to fetch weather data');
         console.error('Weather fetch error:', err);
       } finally {
         setLoading(false);
       }
-    };
-    fetchWeather();
-  }, []);
+    })();
+  }, [setWeatherCondition]);
 
   if (loading) {
     return (
@@ -408,6 +409,8 @@ export default function Index() {
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
   const [greeting, setGreeting] = useState('');
+  const [weatherCondition, setWeatherCondition] = useState(null);
+  const [videoError, setVideoError] = useState(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -420,6 +423,24 @@ export default function Index() {
     const intervalId = setInterval(updateTime, 1000);
     return () => clearInterval(intervalId);
   }, []);
+
+  // Map weather conditions to specific video URLs
+  const getWeatherVideo = () => {
+    const videoMap = {
+      rain: 'https://cdn.pixabay.com/video/2017/08/06/11169-228530159_large.mp4',
+      clear: 'https://cdn.pixabay.com/video/2025/02/24/260589_large.mp4',
+      snow: 'https://cdn.pixabay.com/video/2023/11/12/188778-883818276_large.mp4',
+      thunderstorm: 'https://cdn.pixabay.com/video/2023/07/26/173330-849202512_large.mp4',
+      clouds: 'https://cdn.pixabay.com/video/2023/04/11/158384-816637349_large.mp4'
+    };
+    // Default to cloudy video if condition is not mapped (e.g., Mist, Haze)
+    return videoMap[weatherCondition] || videoMap.clouds;
+  };
+
+  const handleVideoError = () => {
+    console.error('Failed to load weather video for condition:', weatherCondition);
+    setVideoError(true);
+  };
 
   return (
     <>
@@ -493,6 +514,25 @@ export default function Index() {
             background: linear-gradient(135deg, #6096B4 0%, #93BFCF 100%);
           }
 
+          .weather-video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
+            opacity: 0.6;
+            background-color: #000; /* Fallback background color */
+          }
+
+          .content-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            min-height: 100vh;
+          }
+
           /* Responsive classes */
           @media (min-width: 768px) {
             .md\\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -537,32 +577,43 @@ export default function Index() {
           .animate-pulse-slow { animation: pulse-slow 3s infinite ease-in-out; }
         `}</style>
       </Head>
-      <div className="min-h-screen bg-gradient flex flex-col items-center select-none">
-        <div className="container max-w-6xl px-4 py-8 md:py-16">
-          <div className="text-center text-white mb-10">
-            <h1 className="text-4xl md:text-6xl font-bold mb-2 animate-fade-in">
-              {greeting}
-            </h1>
-            <p className="text-xl md:text-2xl animate-slide-in-right opacity-90">
-              {currentDate} • {currentTime || 'Loading...'}
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="flex justify-center md:justify-center">
-              <WeatherDisplay />
+      <div className="relative min-h-screen flex flex-col items-center select-none">
+        <video
+          className="weather-video"
+          autoPlay
+          loop
+          muted
+          playsInline
+          src={getWeatherVideo()}
+          onError={handleVideoError}
+        />
+        <div className={`content-container flex flex-col items-center ${videoError ? 'bg-gradient' : ''}`}>
+          <div className="container max-w-6xl px-4 py-8 md:py-16">
+            <div className="text-center text-white mb-10">
+              <h1 className="text-4xl md:text-6xl font-bold mb-2 animate-fade-in">
+                {greeting}
+              </h1>
+              <p className="text-xl md:text-2xl animate-slide-in-right opacity-90">
+                {currentDate} • {currentTime || 'Loading...'}
+              </p>
             </div>
-            <div className="flex justify-center md:justify-center">
-              <CountdownTimer />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="flex justify-center md:justify-center">
+                <WeatherDisplay setWeatherCondition={setWeatherCondition} />
+              </div>
+              <div className="flex justify-center md:justify-center">
+                <CountdownTimer />
+              </div>
+              <div className="flex justify-center md:justify-center">
+                <ESPAnnouncement />
+              </div>
             </div>
-            <div className="flex justify-center md:justify-center">
-              <ESPAnnouncement />
+            <NewsBox />
+            <div className="mt-12 text-center">
+              <p className="text-white/70 text-sm">
+                Designed for Weston College DPDD Students
+              </p>
             </div>
-          </div>
-          <NewsBox />
-          <div className="mt-12 text-center">
-            <p className="text-white/70 text-sm">
-              Designed for Weston College DPDD Students
-            </p>
           </div>
         </div>
       </div>
