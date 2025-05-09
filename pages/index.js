@@ -150,7 +150,7 @@ const getCurrentTimeGreeting = () => {
 };
 
 // CountdownTimer Component
-const CountdownTimer = () => {
+const CountdownTimer = ({ setExpandedBox, isExpanded }) => {
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [dayOfWeek, setDayOfWeek] = useState(null);
   const [currentTime, setCurrentTime] = useState('');
@@ -183,8 +183,8 @@ const CountdownTimer = () => {
 
   const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-  return (
-    <div className="glass-card p-6 rounded-xl w-full max-w-lg animate-fade-in text-white select-none">
+  const content = (
+    <>
       <div className="flex items-center space-x-2 mb-4 text-primary">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
         <h2 className="text-2xl font-semibold">College Schedule</h2>
@@ -230,12 +230,30 @@ const CountdownTimer = () => {
           })}
         </ul>
       </div>
+    </>
+  );
+
+  return isExpanded ? (
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30 backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
+      <div className="glass-card p-8 rounded-xl w-full max-w-3xl text-white select-none relative transition-all duration-300" onClick={(e) => e.stopPropagation()}>
+        <button className="absolute top-4 right-4 text-white hover:text-primary transition-colors" onClick={() => setExpandedBox(null)}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18"></path>
+            <path d="M6 6l12 12"></path>
+          </svg>
+        </button>
+        {content}
+      </div>
+    </div>
+  ) : (
+    <div className="glass-card p-6 rounded-xl w-full max-w-lg animate-fade-in text-white select-none cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setExpandedBox('schedule')}>
+      {content}
     </div>
   );
 };
 
 // WeatherDisplay Component
-const WeatherDisplay = ({ setWeatherCondition }) => {
+const WeatherDisplay = ({ setWeatherCondition, setExpandedBox, isExpanded }) => {
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -264,7 +282,7 @@ const WeatherDisplay = ({ setWeatherCondition }) => {
           main: data.weather[0].main.toLowerCase() // e.g., rain, clear, clouds
         };
         setWeather(weatherData);
-        setWeatherCondition(weatherData.main); // Pass the main weather condition to parent
+        setWeatherCondition(weatherData.main);
       } catch (err) {
         setError(err.message || 'Failed to fetch weather data');
         console.error('Weather fetch error:', err);
@@ -274,33 +292,23 @@ const WeatherDisplay = ({ setWeatherCondition }) => {
     })();
   }, [setWeatherCondition]);
 
-  if (loading) {
-    return (
-      <div className="glass-card p-6 rounded-xl w-full max-w-lg flex flex-col items-center justify-center min-h-[200px] text-white select-none">
-        <div className="animate-pulse-slow">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary mb-4">
-            <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"></path>
-            <path d="M9.6 4.6A2 2 0 1 1 11 8H2"></path>
-            <path d="M12.6 19.4A2 2 0 1 0 14 16H2"></path>
-          </svg>
-          <p className="text-center text-muted-foreground">Loading weather data...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="glass-card p-6 rounded-xl w-full max-w-lg">
-        <p className="text-center text-destructive">{error}</p>
-      </div>
-    );
-  }
-
   const getWeatherIconUrl = (icon) => `https://openweathermap.org/img/wn/${icon}@2x.png`;
 
-  return (
-    <div className="glass-card p-6 rounded-xl w-full max-w-lg animate-fade-in text-white select-none">
+  const content = loading ? (
+    <div className="flex flex-col items-center justify-center min-h-[200px]">
+      <div className="animate-pulse-slow">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary mb-4">
+          <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"></path>
+          <path d="M9.6 4.6A2 2 0 1 1 11 8H2"></path>
+          <path d="M12.6 19.4A2 2 0 1 0 14 16H2"></path>
+        </svg>
+        <p className="text-center text-muted-foreground">Loading weather data...</p>
+      </div>
+    </div>
+  ) : error ? (
+    <p className="text-center text-destructive">{error}</p>
+  ) : (
+    <>
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold mb-1">Weston-super-Mare</h2>
@@ -341,6 +349,24 @@ const WeatherDisplay = ({ setWeatherCondition }) => {
           </div>
         </div>
       )}
+    </>
+  );
+
+  return isExpanded ? (
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30 backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
+      <div className="glass-card p-8 rounded-xl w-full max-w-3xl text-white select-none relative transition-all duration-300" onClick={(e) => e.stopPropagation()}>
+        <button className="absolute top-4 right-4 text-white hover:text-primary transition-colors" onClick={() => setExpandedBox(null)}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18"></path>
+            <path d="M6 6l12 12"></path>
+          </svg>
+        </button>
+        {content}
+      </div>
+    </div>
+  ) : (
+    <div className="glass-card p-6 rounded-xl w-full max-w-lg animate-fade-in text-white select-none cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setExpandedBox('weather')}>
+      {content}
     </div>
   );
 };
@@ -371,7 +397,7 @@ const NewsBox = () => {
 };
 
 // ESPAnnouncement Component
-const ESPAnnouncement = () => {
+const ESPAnnouncement = ({ setExpandedBox, isExpanded }) => {
   const espTasks = [
     { task: "Task 1: Planning", date: "Wednesday, 14 May 2025" },
     { task: "Task 2: Errors in Code", date: "Friday, 16 May 2025" },
@@ -380,8 +406,8 @@ const ESPAnnouncement = () => {
     { task: "Task 4b: Evaluation", date: "Friday, 23 May 2025" }
   ];
 
-  return (
-    <div className="glass-card p-6 rounded-xl w-full max-w-lg animate-fade-in text-white select-none">
+  const content = (
+    <>
       <div className="flex items-center space-x-2 mb-4 text-primary">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
@@ -400,6 +426,24 @@ const ESPAnnouncement = () => {
           </li>
         ))}
       </ul>
+    </>
+  );
+
+  return isExpanded ? (
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30 backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
+      <div className="glass-card p-8 rounded-xl w-full max-w-3xl text-white select-none relative transition-all duration-300" onClick={(e) => e.stopPropagation()}>
+        <button className="absolute top-4 right-4 text-white hover:text-primary transition-colors" onClick={() => setExpandedBox(null)}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18"></path>
+            <path d="M6 6l12 12"></path>
+          </svg>
+        </button>
+        {content}
+      </div>
+    </div>
+  ) : (
+    <div className="glass-card p-6 rounded-xl w-full max-w-lg animate-fade-in text-white select-none cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setExpandedBox('esp')}>
+      {content}
     </div>
   );
 };
@@ -411,6 +455,7 @@ export default function Index() {
   const [greeting, setGreeting] = useState('');
   const [weatherCondition, setWeatherCondition] = useState(null);
   const [videoError, setVideoError] = useState(false);
+  const [expandedBox, setExpandedBox] = useState(null);
 
   useEffect(() => {
     const updateTime = () => {
@@ -433,7 +478,6 @@ export default function Index() {
       thunderstorm: 'https://cdn.pixabay.com/video/2023/07/26/173330-849202512_large.mp4',
       clouds: 'https://cdn.pixabay.com/video/2023/04/11/158384-816637349_large.mp4'
     };
-    // Default to cloudy video if condition is not mapped (e.g., Mist, Haze)
     return videoMap[weatherCondition] || videoMap.clouds;
   };
 
@@ -523,7 +567,7 @@ export default function Index() {
             object-fit: cover;
             z-index: -1;
             opacity: 0.6;
-            background-color: #000; /* Fallback background color */
+            background-color: #000;
           }
 
           .content-container {
@@ -572,9 +616,28 @@ export default function Index() {
             50% { opacity: 0.5; }
           }
 
+          @keyframes expand-in {
+            0% { opacity: 0; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1); }
+          }
+
+          @keyframes fade-out {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+          }
+
+          .animate-expand-in {
+            animation: expand-in 0.3s ease-out forwards;
+          }
+
           .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
           .animate-slide-in-right { animation: slide-in-right 0.5s ease-out forwards; }
           .animate-pulse-slow { animation: pulse-slow 3s infinite ease-in-out; }
+
+          /* Ensure expanded box doesn't trigger parent click */
+          .glass-card.relative {
+            pointer-events: auto;
+          }
         `}</style>
       </Head>
       <div className="relative min-h-screen flex flex-col items-center select-none">
@@ -599,13 +662,23 @@ export default function Index() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="flex justify-center md:justify-center">
-                <WeatherDisplay setWeatherCondition={setWeatherCondition} />
+                <WeatherDisplay
+                  setWeatherCondition={setWeatherCondition}
+                  setExpandedBox={setExpandedBox}
+                  isExpanded={expandedBox === 'weather'}
+                />
               </div>
               <div className="flex justify-center md:justify-center">
-                <CountdownTimer />
+                <CountdownTimer
+                  setExpandedBox={setExpandedBox}
+                  isExpanded={expandedBox === 'schedule'}
+                />
               </div>
               <div className="flex justify-center md:justify-center">
-                <ESPAnnouncement />
+                <ESPAnnouncement
+                  setExpandedBox={setExpandedBox}
+                  isExpanded={expandedBox === 'esp'}
+                />
               </div>
             </div>
             <NewsBox />
