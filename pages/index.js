@@ -466,7 +466,7 @@ const WeatherDisplay = ({ setWeatherCondition, setExpandedBox, isExpanded }) => 
 const NewsBox = () => {
   const news = {
     title: "Ben Hobbs Spotted at Pure Gym Functional Zone!",
-    date: "Friday, 8 May 2025",
+    date: "Wednesday, 7 May 2025",
     description: "Our very own instructor Ben Hobbs was seen crushing it at Pure Gym's functional zone today, inspiring students both in and out of the classroom!"
   };
 
@@ -521,7 +521,7 @@ const ESPAnnouncement = ({ setExpandedBox, isExpanded }) => {
   );
 
   return isExpanded ? (
-    <div className="fixed inset-0 z-50  backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
+    <div className="fixed inset-0 z-50  backdrop-blur-sm animate-expand-in" onlick={() => setExpandedBox(null)}>
       <div className="glass-card p-8 rounded-xl w-full max-w-3xl text-white select-none relative transition-all duration-300 fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" onClick={(e) => e.stopPropagation()}>
         <button className="absolute top-4 right-4 text-white hover:text-primary transition-colors" onClick={() => setExpandedBox(null)}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
