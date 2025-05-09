@@ -234,8 +234,8 @@ const CountdownTimer = ({ setExpandedBox, isExpanded }) => {
   );
 
   return isExpanded ? (
-    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
-      <div className="glass-card p-8 rounded-xl w-full max-w-3xl text-white select-none relative transition-all duration-300" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50  backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
+      <div className="glass-card p-8 rounded-xl w-full max-w-3xl text-white select-none relative transition-all duration-300 fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" onClick={(e) => e.stopPropagation()}>
         <button className="absolute top-4 right-4 text-white hover:text-primary transition-colors" onClick={() => setExpandedBox(null)}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6L6 18"></path>
@@ -420,56 +420,32 @@ const WeatherDisplay = ({ setWeatherCondition, setExpandedBox, isExpanded }) => 
       {hourlyForecast.length > 0 && (
         <div className="mt-6">
           <h3 className="text-lg font-semibold mb-2 text-white">Today’s Forecast</h3>
-          {isExpanded ? (
-            <div className="grid grid-cols-2 gap-4 delayed-fade-in delay-200">
-              {hourlyForecast.map((hour, index) => (
-                <div key={index} className="bg-primary/10 p-3 rounded-lg">
-                  <p className="font-semibold">{hour.time}</p>
-                  <div className="flex items-center space-x-2">
-                    <Image
-                      src={getWeatherIconUrl(hour.icon)}
-                      alt={hour.description}
-                      width={32}
-                      height={32}
-                      className="w-8 h-8"
-                    />
-                    <span className="capitalize">{hour.description}</span>
-                  </div>
-                  <p>Temp: {Math.round(hour.temp)}°C</p>
-                  <p>Feels Like: {Math.round(hour.feelsLike)}°C</p>
-                  <p>Humidity: {hour.humidity}%</p>
-                  <p>Wind: {hour.windSpeed.toFixed(1)} m/s</p>
+          <div className="flex overflow-x-auto space-x-4 pb-4 scroll-smooth delayed-fade-in delay-200">
+            {hourlyForecast.map((hour, index) => (
+              <div key={index} className="bg-primary/10 p-3 rounded-lg min-w-[150px] flex-shrink-0">
+                <p className="font-semibold">{hour.time}</p>
+                <div className="flex items-center space-x-2">
+                  <Image
+                    src={getWeatherIconUrl(hour.icon)}
+                    alt={hour.description}
+                    width={32}
+                    height={32}
+                    className="w-8 h-8"
+                  />
+                  <span className="capitalize">{hour.description}</span>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex overflow-x-auto space-x-4 pb-4 scroll-smooth">
-              {hourlyForecast.map((hour, index) => (
-                <div key={index} className="bg-primary/10 p-3 rounded-lg min-w-[150px] flex-shrink-0">
-                  <p className="font-semibold">{hour.time}</p>
-                  <div className="flex items-center space-x-2">
-                    <Image
-                      src={getWeatherIconUrl(hour.icon)}
-                      alt={hour.description}
-                      width={32}
-                      height={32}
-                      className="w-8 h-8"
-                    />
-                    <span className="capitalize">{hour.description}</span>
-                  </div>
-                  <p>{Math.round(hour.temp)}°C</p>
-                </div>
-              ))}
-            </div>
-          )}
+                <p>{Math.round(hour.temp)}°C</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </>
   );
 
   return isExpanded ? (
-    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
-      <div className="glass-card p-8 rounded-xl w-full max-w-3xl text-white select-none relative transition-all duration-300" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50  backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
+      <div className="glass-card p-6 rounded-xl w-full max-w-lg text-white select-none relative transition-all duration-300 fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" onClick={(e) => e.stopPropagation()}>
         <button className="absolute top-4 right-4 text-white hover:text-primary transition-colors" onClick={() => setExpandedBox(null)}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6L6 18"></path>
@@ -545,8 +521,8 @@ const ESPAnnouncement = ({ setExpandedBox, isExpanded }) => {
   );
 
   return isExpanded ? (
-    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
-      <div className="glass-card p-8 rounded-xl w-full max-w-3xl text-white select-none relative transition-all duration-300" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50  backdrop-blur-sm animate-expand-in" onClick={() => setExpandedBox(null)}>
+      <div className="glass-card p-8 rounded-xl w-full max-w-3xl text-white select-none relative transition-all duration-300 fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" onClick={(e) => e.stopPropagation()}>
         <button className="absolute top-4 right-4 text-white hover:text-primary transition-colors" onClick={() => setExpandedBox(null)}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6L6 18"></path>
@@ -700,6 +676,7 @@ export default function Index() {
             .md\\:text-2xl { font-size: 1.5rem; line-height: 2rem; }
             .md\\:text-6xl { font-size: 3.75rem; line-height: 1; }
             .md\\:py-16 { padding-top: 4rem; padding-bottom: 4rem; }
+           .md\\:max-w-3xl { max-width: 48rem; }
           }
 
           /* Animations */
