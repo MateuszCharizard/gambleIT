@@ -503,7 +503,7 @@ const ESPAnnouncement = ({ setExpandedBox, isExpanded }) => {
           <path d="M3 6h18"></path>
           <path d="M16 10a4 4 0 0 1-8 0"></path>
         </svg>
-        <h2 className="text-2xl font-semibold">ESP Announcement</h2>
+        <h2 className="text-2xl font-semibold">Exam Announcement</h2>
       </div>
       <h3 className="text-xl font-bold mb-2">Occupational Specialism - Task 1</h3>
       <p className="text-base font-semi mb-4">Starts very soon!</p>
