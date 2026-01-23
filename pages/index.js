@@ -16,32 +16,30 @@ const getCollegeEndTime = (dayOfWeek) => {
 const getCollegeSchedule = (dayOfWeek) => {
   switch (dayOfWeek) {
     case 1: return {
-      times: ["10:30", "14:45", "16:30"],
+      times: ["10:30", "12:30"],
       sessions: [
-        { instructor: "Mathew Goodwin", endTime: "10:30" },
-        { instructor: "Ben Hobbs", endTime: "14:45" },
-        { instructor: "Will Price", endTime: "16:30" }
+        { instructor: "Ben Hobbs", endTime: "12:00" }
       ]
     };
     case 2: return {
-      times: ["12:15", "16:30"],
+      times: ["10:30", "14:30"],
       sessions: [
-        { instructor: "Jon Barnett", endTime: "12:15" },
-        { instructor: "Ben Hobbs", endTime: "16:30" }
+        { instructor: "Jon Barnett", endTime: "14:30" },
       ]
     };
     case 4: return {
-      times: ["12:15"],
+      times: ["10:30","12:00", "14:30", "16:00"],
       sessions: [
-        { instructor: "Ben Hobbs", endTime: "12:15" }
+        { instructor: "Thomas Griffin", endTime: "10:30" },
+        { instructor: "Ben Hobbs", endTime: "12:00" },
+        { instructor: "Thomas Griffin", endTime: "14:30" },
+        { instructor: "Will Price", endTime: "16:00" }
       ]
     };
     case 5: return {
-      times: ["10:30", "12:15", "14:45"],
+      times: ["16:00"],
       sessions: [
-        { instructor: "Ben Hobbs", endTime: "10:30" },
-        { instructor: "Leek Deng", endTime: "12:15" },
-        { instructor: "Ben Hobbs", endTime: "14:45" }
+        { instructor: "Ben Hobbs", endTime: "16:00" },
       ]
     };
     default: return null; // Saturday, Sunday: no college
@@ -465,9 +463,9 @@ const WeatherDisplay = ({ setWeatherCondition, setExpandedBox, isExpanded }) => 
 // NewsBox Component
 const NewsBox = () => {
   const news = {
-    title: "Ben Hobbs Spotted at Pure Gym Functional Zone!",
+    title: "AI is getting out of control: Charlie White Deepfakes are Getting More Popular",
     date: "Wednesday, 7 May 2025",
-    description: "Our very own instructor Ben Hobbs was seen crushing it at Pure Gym's functional zone today, inspiring students both in and out of the classroom!"
+    description: "Using Grok AI, certain T-Level DPDD students have been creating various AI pictures and videos of Charlie White and posting them in their group chats to laugh about. Charlie White is, of course, not happy about this situation."
   };
 
   return (
@@ -507,16 +505,9 @@ const ESPAnnouncement = ({ setExpandedBox, isExpanded }) => {
         </svg>
         <h2 className="text-2xl font-semibold">ESP Announcement</h2>
       </div>
-      <h3 className="text-xl font-bold mb-2">ESP Starts Next Week!</h3>
-      <p className="text-base font-semi mb-4">Get ready for the Extended Software Project with the following schedule:</p>
-      <ul className="space-y-2 border-2 rounded-lg backdrop-blur p-2">
-        {espTasks.map((item, index) => (
-          <li key={index} className="flex justify-between items-start">
-            <span className="font-medium font-semibold w-2/3">{item.task}</span>
-            <span className="text-right font-semibold w-3/3 text-muted-foreground">{item.date}</span>
-          </li>
-        ))}
-      </ul>
+      <h3 className="text-xl font-bold mb-2">Occupational Specialism - Task 1</h3>
+      <p className="text-base font-semi mb-4">Starts very soon!</p>
+      <p className="text-base font-semi mb-4">Information will be given shortly</p>
     </>
   );
 
